@@ -1,0 +1,301 @@
+#!/bin/bash
+# Common library functions for sysadmin assistant
+# Source this file in all scripts: source "$(dirname "$0")/lib/common.sh"
+
+set -euo pipefail
+
+# Configuration
+SYSADMIN_DIR="${SYSADMIN_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+LOG_DIR="/var/log/sysadmin"
+HOSTNAME=$(hostname)
+REPORTS_DIR="$SYSADMIN_DIR/reports/$HOSTNAME"
+CONFIG_DIR="$SYSADMIN_DIR/config"
+
+# Colors for output
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Ensure log directory exists
+sudo mkdir -p "$LOG_DIR"
+sudo chmod 755 "$LOG_DIR"
+
+# Logging functions
+log() {
+    local level="$1"
+    shift
+    local message="$*"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "[$timestamp] [$level] $message" | sudo tee -a "$LOG_DIR/sysadmin.log" >/dev/null
+
+    case "$level" in
+        ERROR|CRITICAL)
+            echo -e "${RED}[$level]${NC} $message" >&2
+            ;;
+        WARNING)
+            echo -e "${YELLOW}[$level]${NC} $message" >&2
+            ;;
+        INFO)
+            echo -e "${GREEN}[$level]${NC} $message"
+            ;;
+        DEBUG)
+            if [[ "${VERBOSE:-0}" == "1" ]]; then
+                echo -e "${BLUE}[$level]${NC} $message"
+            fi
+            ;;
+    esac
+}
+
+log_info() { log INFO "$@"; }
+log_warning() { log WARNING "$@"; }
+log_error() { log ERROR "$@"; }
+log_critical() { log CRITICAL "$@"; }
+log_debug() { log DEBUG "$@"; }
+
+# Check if running as root or with sudo
+check_sudo() {
+    if [[ $EUID -ne 0 ]]; then
+        log_error "This script must be run with sudo privileges"
+        exit 1
+    fi
+}
+
+# Check disk space usage
+# Returns: percentage used (without % sign)
+check_disk_space() {
+    local mount_point="${1:-/}"
+    df -h "$mount_point" | awk 'NR==2 {print $5}' | sed 's/%//'
+}
+
+# Check if a systemd service is active
+# Returns: 0 if active, 1 if not
+check_service_status() {
+    local service_name="$1"
+    systemctl is-active --quiet "$service_name"
+}
+
+# Check HTTP endpoint health
+# Args: url, timeout (default 5)
+# Returns: 0 if healthy, 1 if not
+check_http_endpoint() {
+    local url="$1"
+    local timeout="${2:-5}"
+
+    if curl -f -s -m "$timeout" "$url" >/dev/null 2>&1; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Get system memory usage percentage
+get_memory_usage() {
+    free | awk 'NR==2 {printf "%.0f", $3/$2 * 100}'
+}
+
+# Get system load average (1 min)
+get_load_average() {
+    uptime | awk -F'load average:' '{print $2}' | awk -F',' '{print $1}' | tr -d ' '
+}
+
+# Check if reboot is required
+is_reboot_required() {
+    [[ -f /var/run/reboot-required ]]
+}
+
+# Get count of available updates
+get_update_count() {
+    apt list --upgradable 2>/dev/null | grep -c upgradable || echo "0"
+}
+
+# Check if firewall (ufw) is enabled
+is_firewall_enabled() {
+    sudo ufw status | grep -q "Status: active"
+}
+
+# Get Docker disk usage (images)
+get_docker_image_usage() {
+    if command -v docker &>/dev/null; then
+        docker system df 2>/dev/null | awk '/Images/ {print $4}' || echo "0GB"
+    else
+        echo "0GB"
+    fi
+}
+
+# Check if a process is running by name
+is_process_running() {
+    local process_name="$1"
+    pgrep -f "$process_name" >/dev/null 2>&1
+}
+
+# Send alert (currently just logs, can be extended for email/webhook)
+send_alert() {
+    local severity="$1"
+    local title="$2"
+    local description="$3"
+
+    log_critical "ALERT [$severity]: $title - $description"
+
+    # Future: Add email/webhook notification here
+    # Example: echo "$description" | mail -s "[$severity] $title" admin@example.com
+}
+
+# Update alerts JSON file
+update_alerts() {
+    local severity="$1"
+    local alert_id="$2"
+    local title="$3"
+    local description="$4"
+    local status="${5:-open}"
+
+    local alerts_file="$REPORTS_DIR/alerts.json"
+
+    # Create temporary Python script to update JSON
+    python3 <<EOF
+import json
+import os
+from datetime import datetime, UTC
+
+alerts_file = "$alerts_file"
+severity = "$severity"
+alert_id = "$alert_id"
+title = "$title"
+description = "$description"
+status = "$status"
+
+# Load existing alerts
+if os.path.exists(alerts_file):
+    with open(alerts_file, 'r') as f:
+        data = json.load(f)
+else:
+    data = {"generated": "", "hostname": "$HOSTNAME", "critical": [], "high": [], "medium": [], "info": []}
+
+# Update timestamp
+data["generated"] = datetime.now(UTC).isoformat()
+
+# Find and update or add alert
+severity_list = data.get(severity, [])
+found = False
+for alert in severity_list:
+    if alert["id"] == alert_id:
+        alert["title"] = title
+        alert["description"] = description
+        alert["status"] = status
+        alert["updated"] = datetime.now(UTC).strftime("%Y-%m-%d")
+        found = True
+        break
+
+if not found:
+    severity_list.append({
+        "id": alert_id,
+        "severity": severity,
+        "title": title,
+        "description": description,
+        "detected": datetime.now(UTC).strftime("%Y-%m-%d"),
+        "status": status
+    })
+    data[severity] = severity_list
+
+# Write back
+with open(alerts_file, 'w') as f:
+    json.dump(data, f, indent=2)
+EOF
+}
+
+# Remove alert from JSON
+clear_alert() {
+    local alert_id="$1"
+    local alerts_file="$REPORTS_DIR/alerts.json"
+
+    python3 <<EOF
+import json
+import os
+from datetime import datetime, UTC
+
+alerts_file = "$alerts_file"
+alert_id = "$alert_id"
+
+if os.path.exists(alerts_file):
+    with open(alerts_file, 'r') as f:
+        data = json.load(f)
+
+    data["generated"] = datetime.now(UTC).isoformat()
+
+    for severity in ["critical", "high", "medium", "info"]:
+        data[severity] = [a for a in data.get(severity, []) if a["id"] != alert_id]
+
+    with open(alerts_file, 'w') as f:
+        json.dump(data, f, indent=2)
+EOF
+}
+
+# Get list of failed systemd services
+get_failed_services() {
+    systemctl list-units --type=service --state=failed --no-pager --no-legend | awk '{print $2}'
+}
+
+# Get zombie processes
+get_zombie_processes() {
+    ps aux | awk '$8 ~ /Z/ {print $2,$11}'
+}
+
+# Check log file size
+# Args: log_file_path
+# Returns: size in MB
+get_log_size_mb() {
+    local log_file="$1"
+    if [[ -f "$log_file" ]]; then
+        du -m "$log_file" | awk '{print $1}'
+    else
+        echo "0"
+    fi
+}
+
+# Check if a Docker container is running
+is_docker_container_running() {
+    local container_name="$1"
+    docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${container_name}$"
+}
+
+# Get container status
+get_docker_container_status() {
+    local container_name="$1"
+    docker inspect -f '{{.State.Status}}' "$container_name" 2>/dev/null || echo "not_found"
+}
+
+# Restart a systemd service safely
+restart_service_safe() {
+    local service_name="$1"
+    local max_attempts="${2:-3}"
+
+    for attempt in $(seq 1 "$max_attempts"); do
+        log_info "Attempting to restart $service_name (attempt $attempt/$max_attempts)"
+
+        if systemctl restart "$service_name"; then
+            sleep 2
+            if check_service_status "$service_name"; then
+                log_info "Successfully restarted $service_name"
+                return 0
+            fi
+        fi
+
+        sleep 5
+    done
+
+    log_error "Failed to restart $service_name after $max_attempts attempts"
+    return 1
+}
+
+# Get failed login count in last N hours
+get_failed_login_count() {
+    local hours="${1:-1}"
+    local since=$(date -d "$hours hours ago" '+%Y-%m-%d %H:%M:%S')
+    journalctl -u ssh -u sshd --since "$since" 2>/dev/null | grep -c "Failed password" || echo "0"
+}
+
+# Get security update count
+get_security_update_count() {
+    apt list --upgradable 2>/dev/null | grep -i security | wc -l
+}

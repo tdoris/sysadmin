@@ -1,0 +1,15 @@
+[Unit]
+Description=Sysadmin Dashboard - Claude Code Web Interface
+After=network.target
+
+[Service]
+Type=simple
+User=%USER%
+WorkingDirectory=%SYSADMIN_DIR%/dashboard
+ExecStart=%PYTHON% %SYSADMIN_DIR%/dashboard/app.py
+Restart=always
+RestartSec=10
+Environment="PYTHONUNBUFFERED=1"
+
+[Install]
+WantedBy=multi-user.target

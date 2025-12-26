@@ -1,0 +1,22 @@
+# Registered machines managed by the sysadmin assistant
+# This file is automatically updated when install.sh is run
+# Copy this to machines.yaml and it will be populated during installation
+
+machines: {}
+
+# Example entry (created automatically by install.sh):
+# machines:
+#   hostname:
+#     hostname: hostname
+#     os: Ubuntu 24.04.3 LTS
+#     registered: 2025-12-26
+#     primary_use: Development/Analytics
+#     hardware:
+#       ram: 128GB
+#     services:
+#       - docker
+#       - ollama
+#     notes: |
+#       Machine-specific notes
+#     kernel: 6.14.0-37-generic
+#     last_updated: 2025-12-26

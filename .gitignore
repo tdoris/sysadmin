@@ -1,0 +1,34 @@
+# Python virtual environment
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Reports (machine-specific)
+reports/
+
+# Logs
+*.log
+*.log.*
+
+# Claude path cache
+.claude-path
+
+# Machine-specific config
+config/machines.yaml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+.cache/

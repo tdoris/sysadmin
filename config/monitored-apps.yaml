@@ -1,0 +1,34 @@
+# Production applications to monitor
+# Add entries for each production app/service
+
+# Example entries - customize for your actual apps
+
+# apps:
+#   my-shiny-app:
+#     type: systemd
+#     service_name: myapp.service
+#     health_check:
+#       method: http
+#       url: http://localhost:3838/
+#       timeout: 5
+#     auto_restart: true
+#     critical: true
+#
+#   analytics-dashboard:
+#     type: docker
+#     container_name: dashboard
+#     health_check:
+#       method: http
+#       url: http://localhost:8050/health
+#       timeout: 10
+#     auto_restart: true
+#     critical: false
+#
+#   daily-report:
+#     type: cron
+#     cron_pattern: "0 2 * * *"
+#     check_log: /var/log/analytics/daily.log
+#     max_failures: 3
+#     critical: true
+
+apps: {}  # Add your applications here

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sysadmin Dashboard - {{ hostname }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 Claude Code Sysadmin Dashboard</h1>
+            <div class="hostname">{{ hostname }}</div>
+        </header>
+
+        <!-- Quick Launch Section -->
+        <section class="launch-section">
+            <h2>🚀 Launch Interactive Session</h2>
+            <div class="command-box">
+                <code id="claude-command">{{ claude_command }}</code>
+                <button onclick="copyCommand()" class="btn-copy">Copy</button>
+            </div>
+            <p class="help-text">Run this command in your terminal to start an interactive Claude Code sysadmin session</p>
+        </section>
+
+        <!-- System Status Cards -->
+        <section class="status-cards">
+            <div class="card" id="disk-card">
+                <h3>Disk Usage</h3>
+                <div class="metric">
+                    <span class="value" id="disk-usage">--</span>
+                    <span class="unit">%</span>
+                </div>
+            </div>
+            <div class="card" id="memory-card">
+                <h3>Memory Usage</h3>
+                <div class="metric">
+                    <span class="value" id="memory-usage">--</span>
+                    <span class="unit">%</span>
+                </div>
+            </div>
+            <div class="card" id="load-card">
+                <h3>Load Average</h3>
+                <div class="metric">
+                    <span class="value" id="load-avg">--</span>
+                </div>
+            </div>
+            <div class="card" id="uptime-card">
+                <h3>Uptime</h3>
+                <div class="metric">
+                    <span class="value small" id="uptime">--</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Alerts Section -->
+        <section class="alerts-section">
+            <h2>⚠️ Active Alerts</h2>
+            <div class="alerts-summary">
+                <span class="alert-badge critical" id="critical-count">0</span>
+                <span class="alert-badge high" id="high-count">0</span>
+                <span class="alert-badge medium" id="medium-count">0</span>
+            </div>
+            <div id="alerts-container"></div>
+        </section>
+
+        <!-- Actions Section -->
+        <section class="actions-section">
+            <h2>⚡ Quick Actions</h2>
+            <div class="actions-grid">
+                <button onclick="triggerJob('hourly')" class="btn-action">
+                    <span class="icon">🔍</span>
+                    <span>Run Hourly Check</span>
+                </button>
+                <button onclick="triggerJob('daily')" class="btn-action">
+                    <span class="icon">🔧</span>
+                    <span>Run Daily Maintenance</span>
+                </button>
+                <button onclick="refreshAll()" class="btn-action">
+                    <span class="icon">🔄</span>
+                    <span>Refresh Dashboard</span>
+                </button>
+            </div>
+            <div id="action-status"></div>
+        </section>
+
+        <!-- Tabs for Details -->
+        <section class="details-section">
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('activity')">Recent Activity</button>
+                <button class="tab" onclick="showTab('recommendations')">Recommendations</button>
+                <button class="tab" onclick="showTab('report')">System Report</button>
+                <button class="tab" onclick="showTab('apps')">Monitored Apps</button>
+            </div>
+
+            <div id="activity-tab" class="tab-content active">
+                <h3>Recent Claude Code Activities</h3>
+                <div class="log-container" id="activity-log">
+                    <p>Loading...</p>
+                </div>
+            </div>
+
+            <div id="recommendations-tab" class="tab-content">
+                <h3>Claude's Recommendations</h3>
+                <div id="recommendations-container">
+                    <p>Loading...</p>
+                </div>
+            </div>
+
+            <div id="report-tab" class="tab-content">
+                <h3>Latest System Report</h3>
+                <div id="report-timestamp"></div>
+                <div class="report-container" id="report-content">
+                    <p>Loading...</p>
+                </div>
+            </div>
+
+            <div id="apps-tab" class="tab-content">
+                <h3>Monitored Applications</h3>
+                <div id="apps-container">
+                    <p>Loading...</p>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <p>Last updated: <span id="last-update">--</span></p>
+            <p>Auto-refresh every 30 seconds</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
