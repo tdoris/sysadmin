@@ -128,46 +128,78 @@ check_log_rotation() {
     "$SCRIPT_DIR/remediation/rotate-large-logs.sh"
 }
 
-# Check firewall and auto-enable if disabled
-check_and_enable_firewall() {
-    log_info "Checking firewall configuration..."
+# Check for orphaned packages
+check_orphaned_packages() {
+    log_info "Checking for orphaned packages..."
 
-    if ! is_firewall_enabled; then
-        log_critical "Firewall is DISABLED"
+    local orphaned=$(apt-mark showauto | wc -l)
+    log_info "Auto-installed packages: $orphaned"
 
-        if [[ $AUTO_REMEDIATE -eq 1 && $DRY_RUN -eq 0 ]]; then
-            log_info "Auto-remediate enabled, enabling firewall..."
-            "$SCRIPT_DIR/remediation/enable-firewall.sh"
-        else
-            log_warning "Firewall remediation skipped (auto-remediate disabled or dry-run)"
-        fi
+    # Check for packages that are no longer needed
+    if [[ $AUTO_REMEDIATE -eq 1 && $DRY_RUN -eq 0 ]]; then
+        log_info "Running autoremove to clean orphaned packages..."
+        sudo apt-get autoremove -y
+        log_info "Orphaned packages cleaned"
     else
-        log_info "✓ Firewall is enabled"
+        log_info "[DRY RUN] Would clean orphaned packages"
     fi
 }
 
-# Check security - failed logins
-check_failed_logins() {
-    log_info "Checking failed login attempts..."
+# Check hardware health (SMART status)
+check_hardware_health() {
+    log_info "Checking hardware health..."
 
-    local failed_24h=$(get_failed_login_count 24)
-    log_info "Failed logins (last 24h): $failed_24h"
+    if command -v smartctl &>/dev/null; then
+        # Find physical disks
+        local disks=$(lsblk -d -n -o NAME,TYPE | grep disk | awk '{print $1}')
 
-    if [[ $failed_24h -gt 10 ]]; then
-        log_warning "High number of failed logins: $failed_24h"
-        update_alerts "medium" "failed-logins" \
-            "High Failed Login Attempts" \
-            "$failed_24h failed login attempts in last 24 hours"
+        for disk in $disks; do
+            log_info "Checking /dev/$disk..."
 
-        # Log source IPs
-        log_info "Top source IPs for failed logins:"
-        sudo journalctl -u ssh -u sshd --since "24 hours ago" | \
-            grep "Failed password" | \
-            awk '{print $(NF-3)}' | \
-            sort | uniq -c | sort -rn | head -5 | \
-            sudo tee -a "$LOG_DIR/sysadmin.log" >/dev/null
+            local smart_status=$(sudo smartctl -H /dev/$disk 2>/dev/null | grep "SMART overall-health" | awk '{print $NF}' || echo "UNKNOWN")
+
+            if [[ "$smart_status" == "PASSED" ]]; then
+                log_info "✓ /dev/$disk health: PASSED"
+            elif [[ "$smart_status" != "UNKNOWN" ]]; then
+                log_critical "Disk /dev/$disk SMART status: $smart_status"
+                update_alerts "critical" "disk-health-$disk" \
+                    "Disk Health Warning" \
+                    "/dev/$disk SMART status is $smart_status - check immediately"
+            fi
+        done
     else
-        clear_alert "failed-logins"
+        log_debug "smartctl not installed, skipping SMART checks"
+    fi
+}
+
+# Check for broken symlinks in common paths
+check_broken_symlinks() {
+    log_info "Checking for broken symlinks..."
+
+    local broken_links=""
+    for path in /usr/bin /usr/local/bin /opt "$HOME/.local/bin"; do
+        if [[ -d "$path" ]]; then
+            local found=$(find "$path" -xtype l 2>/dev/null | head -10)
+            if [[ -n "$found" ]]; then
+                broken_links="$broken_links$found\n"
+            fi
+        fi
+    done
+
+    if [[ -n "$broken_links" ]]; then
+        log_warning "Found broken symlinks:"
+        echo -e "$broken_links" | head -10 | while read -r link; do
+            if [[ -n "$link" ]]; then
+                log_warning "  $link"
+            fi
+        done
+
+        update_alerts "info" "broken-symlinks" \
+            "Broken Symlinks Detected" \
+            "Found broken symlinks in system paths"
+    else
+        log_info "✓ No broken symlinks in common paths"
+        clear_alert "broken-symlinks"
     fi
 }
 
@@ -241,13 +273,17 @@ $(df -h / /home /var 2>/dev/null | head -5)
 
 ---
 
-## Updates & Security
+## Updates & Maintenance
 
 - **Available Updates**: $(get_update_count) packages
 - **Security Updates**: $(get_security_update_count) packages
 - **Reboot Required**: $(is_reboot_required && echo "YES" || echo "No")
-- **Firewall Status**: $(is_firewall_enabled && echo "Enabled ✓" || echo "DISABLED ⚠")
-- **Failed Logins (24h)**: $(get_failed_login_count 24)
+- **Old Kernels**: $(dpkg -l | grep -c "^ii.*linux-image-[0-9]" || echo "0") installed
+
+## Hardware Health
+
+- **Disk SMART Status**: $(command -v smartctl &>/dev/null && echo "Monitored" || echo "Not available")
+- **System Temperatures**: $(command -v sensors &>/dev/null && sensors 2>/dev/null | grep -E "Core |temp" | grep -oP '\+\d+\.\d+°C' | head -1 || echo "N/A")
 
 ---
 
@@ -399,10 +435,11 @@ main() {
     check_system_updates
     check_reboot_required
     cleanup_old_kernels
+    check_orphaned_packages
     check_docker_cleanup
     check_log_rotation
-    check_and_enable_firewall
-    check_failed_logins
+    check_hardware_health
+    check_broken_symlinks
     check_temp_directories
 
     # Generate comprehensive report

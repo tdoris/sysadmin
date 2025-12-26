@@ -13,12 +13,13 @@ You are the autonomous system administrator for this machine.
    - Execute ./scripts/daily-maintenance.sh OR do equivalent checks manually
    - System updates available
    - Reboot required?
-   - Security vulnerabilities
    - Old kernels and residual configs
+   - Orphaned packages (no longer needed)
    - Docker image usage
    - Large log files
    - Temp directory usage
-   - Failed login attempts (security)
+   - Hardware health (SMART status)
+   - Broken symlinks
    - All items from hourly checks
 
 3. **System Updates** (you have --dangerously-skip-permissions)
@@ -53,18 +54,22 @@ You are the autonomous system administrator for this machine.
      sudo find /var/tmp -type f -mtime +7 -delete
      ```
 
-5. **Security Hardening**
-   - **Firewall disabled**: Enable it with safe defaults
+5. **System Optimization**
+   - **Orphaned packages**: Remove packages no longer needed
      ```bash
-     sudo ufw default deny incoming
-     sudo ufw default allow outgoing
-     sudo ufw allow from 100.64.0.0/10 to any port 22  # Tailscale only
-     sudo ufw --force enable
+     sudo apt-get autoremove -y
      ```
 
-   - **Failed logins >10/day**: Log source IPs, consider fail2ban
+   - **Broken symlinks**: Check common paths and clean up
 
-   - **Security updates >7 days old**: Apply automatically
+   - **Hardware health**: Check SMART status for all disks
+     ```bash
+     for disk in $(lsblk -d -n -o NAME,TYPE | grep disk | awk '{print $1}'); do
+       sudo smartctl -H /dev/$disk
+     done
+     ```
+
+   - **Old kernels >3**: Clean up to free space and reduce clutter
 
 6. **Generate Comprehensive Report**
    - Create detailed report in reports/{hostname}/latest.md including:
@@ -140,28 +145,34 @@ Updates Applied:
   - 88 packages upgraded (including security updates)
   - 3 old kernels purged
   - 62 residual configs cleaned
+  - 15 orphaned packages removed
 Cleanup Performed:
   - Docker images: 151GB reclaimed
   - Rotated 5 large log files
   - Cleaned /tmp and /var/tmp (3.2GB freed)
-Security Actions:
-  - Firewall enabled with safe defaults
-  - 3 failed login attempts in last 24h (acceptable)
+Hardware Health:
+  - All disks SMART status: PASSED
+  - CPU temperature: 45°C (normal)
+  - No broken symlinks found
 Current Status:
   - Disk: 31% (was 45%)
   - Memory: 12%
-  - Reboot required: YES (schedule soon)
+  - Reboot required: YES (schedule when convenient)
 Critical Alerts: 1 (no backup solution)
-High Alerts: 1 (reboot required)
+Medium Alerts: 1 (reboot pending)
 
 ## Important Notes
 
+- **Target Environment**: Developer workstation behind corporate firewall
+- **Philosophy**: Optimize for performance, stability, and developer experience
 - You have full sudo access via --dangerously-skip-permissions
 - Apply security updates automatically (configured with AUTO_UPDATE=1)
-- Be thorough but careful - this is production system
+- **Be thorough** about cleaning and optimization
+- **Be careful** about disrupting active development work
+- **Never reboot automatically** - developer may have unsaved work
 - Always update activity.log with detailed actions
 - Generate comprehensive report in markdown format
-- Never reboot automatically - flag for human to schedule
 - Check monitored-apps.yaml for production app configuration
 - Test production apps after any changes
-- Preserve user data and code - only clean system maintenance items
+- **Preserve user data and code** - only clean system maintenance items
+- Focus on resource management, not security hardening

@@ -124,21 +124,38 @@ check_critical_services() {
     fi
 }
 
-# Check firewall status
-check_firewall_status() {
-    log_info "Checking firewall status..."
+# Check temperature (for dev workstations with high CPU/GPU usage)
+check_temperature() {
+    log_info "Checking system temperatures..."
 
-    if ! is_firewall_enabled; then
-        log_critical "Firewall is DISABLED"
-        update_alerts "critical" "firewall-disabled" \
-            "Firewall Disabled" \
-            "UFW firewall is not active - system is exposed"
+    if command -v sensors &>/dev/null; then
+        local temps=$(sensors 2>/dev/null | grep -E "Core |temp" | grep -oP '\+\d+\.\d+°C' | grep -oP '\d+' | head -5)
 
-        # Don't auto-enable firewall in hourly check (might break things)
-        # This is handled in daily maintenance
-    else
-        log_info "✓ Firewall is enabled"
-        clear_alert "firewall-disabled"
+        if [[ -n "$temps" ]]; then
+            local max_temp=0
+            while read -r temp; do
+                if [[ $temp -gt $max_temp ]]; then
+                    max_temp=$temp
+                fi
+            done <<< "$temps"
+
+            log_info "Maximum temperature: ${max_temp}°C"
+
+            if [[ $max_temp -gt 85 ]]; then
+                log_warning "High temperature detected: ${max_temp}°C"
+                update_alerts "medium" "high-temperature" \
+                    "High System Temperature" \
+                    "System temperature is ${max_temp}°C - check cooling"
+            elif [[ $max_temp -gt 95 ]]; then
+                log_critical "Critical temperature: ${max_temp}°C"
+                update_alerts "high" "critical-temperature" \
+                    "Critical Temperature" \
+                    "System temperature is ${max_temp}°C - risk of thermal throttling"
+            else
+                clear_alert "high-temperature"
+                clear_alert "critical-temperature"
+            fi
+        fi
     fi
 }
 
@@ -180,7 +197,7 @@ Hostname: $HOSTNAME
 Disk Usage: $(check_disk_space /)%
 Memory Usage: $(get_memory_usage)%
 Load Average: $(get_load_average)
-Firewall: $(is_firewall_enabled && echo "Enabled" || echo "DISABLED")
+Uptime: $(uptime -p)
 
 See alerts.json for detailed issues.
 See /var/log/sysadmin/sysadmin.log for full log.
@@ -202,7 +219,7 @@ main() {
     check_disk_space_critical
     check_memory_usage_critical
     check_critical_services
-    check_firewall_status
+    check_temperature
     check_production_apps
     check_zombie_processes
 
