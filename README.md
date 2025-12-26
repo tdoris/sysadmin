@@ -503,6 +503,176 @@ sudo systemctl restart sysadmin-dashboard.service
 # Cron jobs automatically use updated scripts
 ```
 
+## Testing the Installation in LXD Container
+
+Before deploying to production systems, you can test the installation in an isolated LXD container.
+
+### Prerequisites
+
+1. **LXD installed and initialized**:
+   ```bash
+   sudo snap install lxd
+   sudo lxd init --auto
+   ```
+
+2. **Configure UFW firewall for LXD networking** (if UFW is enabled):
+   ```bash
+   # Allow traffic on LXD bridge
+   sudo ufw allow in on lxdbr0
+   sudo ufw allow out on lxdbr0
+   sudo ufw route allow in on lxdbr0
+   sudo ufw route allow out on lxdbr0
+
+   # Verify rules
+   sudo ufw status | grep lxdbr0
+   ```
+
+   **Important**: Without these firewall rules, containers will not receive IPv4 addresses via DHCP and will have no network connectivity.
+
+### Testing Steps
+
+1. **Create test container**:
+   ```bash
+   sudo lxc launch ubuntu:24.04 sysadmin-test
+   ```
+
+2. **Wait for container initialization** (cloud-init):
+   ```bash
+   # Check container has IPv4 address
+   sudo lxc list sysadmin-test
+
+   # Should show something like: 10.85.165.110 (eth0)
+   # If no IPv4, check UFW rules above
+   ```
+
+3. **Install dependencies in container**:
+   ```bash
+   sudo lxc exec sysadmin-test -- bash -c "apt update && apt install -y git python3-venv python3-pip"
+   ```
+
+4. **Copy repository to container** (since repo requires authentication):
+   ```bash
+   # From the host where you have the repo checked out
+   cd ~
+   tar --exclude='.git' --exclude='venv' --exclude='reports' --exclude='.claude-path' \
+       -czf /tmp/sysadmin.tar.gz sysadmin/
+
+   sudo lxc file push /tmp/sysadmin.tar.gz sysadmin-test/root/
+   sudo lxc exec sysadmin-test -- tar -xzf /root/sysadmin.tar.gz -C /root/
+   rm /tmp/sysadmin.tar.gz
+   ```
+
+5. **Create test user** (install.sh refuses to run as root):
+   ```bash
+   sudo lxc exec sysadmin-test -- bash -c "
+       useradd -m -s /bin/bash testuser
+       usermod -aG sudo testuser
+       echo 'testuser ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/testuser
+       cp -r /root/sysadmin /home/testuser/
+       chown -R testuser:testuser /home/testuser/sysadmin
+   "
+   ```
+
+6. **Run installation test**:
+   ```bash
+   sudo lxc exec sysadmin-test -- su - testuser -c "cd /home/testuser/sysadmin && ./install.sh"
+   ```
+
+7. **Expected result** (Claude Code not installed in container):
+   ```
+   [INFO] Installing Claude Code Sysadmin Assistant for hostname: sysadmin-test
+   [INFO] Creating directory structure...
+   [INFO] Checking dependencies...
+   [INFO] Checking for Claude Code...
+
+   [ERROR] ╔════════════════════════════════════════════════════════════╗
+   [ERROR] ║  CLAUDE CODE NOT FOUND - INSTALLATION CANNOT CONTINUE     ║
+   [ERROR] ╚════════════════════════════════════════════════════════════╝
+
+   [ERROR] This system requires Claude Code to function.
+   [ERROR] Claude Code IS the autonomous system administrator.
+
+   [INFO] To install Claude Code:
+   [INFO]   1. Visit: https://claude.ai/code
+   [INFO]   2. Download and install Claude Code CLI
+   [INFO]   3. Verify installation: claude --version
+   [INFO]   4. Run this installer again: ./install.sh
+   ```
+
+8. **Verify proper error handling**:
+   - ✓ Script detects missing Claude Code
+   - ✓ Clear error message displayed
+   - ✓ Installation instructions provided
+   - ✓ Script exits with status 1
+
+9. **Clean up test container**:
+   ```bash
+   sudo lxc stop sysadmin-test
+   sudo lxc delete sysadmin-test
+   ```
+
+### Testing with Claude Code Installed
+
+If you want to test the complete installation (with Claude Code):
+
+1. Install Claude Code in the container:
+   ```bash
+   # Inside container, as testuser
+   sudo lxc exec sysadmin-test -- su - testuser
+
+   # Download and install Claude Code from https://claude.ai/code
+   # Then run install.sh again
+   ```
+
+2. Verify installation creates:
+   - Python venv at `~/sysadmin/venv/`
+   - Cron jobs for hourly and daily maintenance
+   - Systemd service: `sysadmin-dashboard.service`
+   - Log directory: `/var/log/sysadmin/`
+   - Reports directory: `~/sysadmin/reports/{hostname}/`
+
+3. Test dashboard:
+   ```bash
+   # Check dashboard is running
+   sudo lxc exec sysadmin-test -- systemctl status sysadmin-dashboard.service
+
+   # Access dashboard (forward port from container)
+   sudo lxc config device add sysadmin-test dashboard-port proxy \
+       listen=tcp:127.0.0.1:5051 connect=tcp:127.0.0.1:5050
+
+   # Open http://localhost:5051 on host
+   ```
+
+### Troubleshooting Container Networking
+
+If container cannot reach the internet:
+
+1. **Check IPv4 address assignment**:
+   ```bash
+   sudo lxc exec sysadmin-test -- ip addr show eth0
+   # Should have inet 10.85.165.X/24
+   ```
+
+2. **Test connectivity**:
+   ```bash
+   sudo lxc exec sysadmin-test -- ping -c 2 10.85.165.1  # LXD gateway
+   sudo lxc exec sysadmin-test -- ping -c 2 8.8.8.8       # Internet
+   sudo lxc exec sysadmin-test -- ping -c 2 google.com   # DNS
+   ```
+
+3. **Check UFW rules** (most common issue):
+   ```bash
+   sudo ufw status | grep lxdbr0
+   # Should show ALLOW rules for lxdbr0
+   ```
+
+4. **Check LXD network config**:
+   ```bash
+   sudo lxc network show lxdbr0
+   # Verify: ipv4.dhcp: "true"
+   #         ipv4.nat: "true"
+   ```
+
 ## Uninstallation
 
 ```bash
