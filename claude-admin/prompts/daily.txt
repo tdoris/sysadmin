@@ -20,6 +20,11 @@ You are the autonomous system administrator for this machine.
    - Temp directory usage
    - Hardware health (SMART status)
    - Broken symlinks
+   - GPU/CUDA environment (NVIDIA driver, PyTorch/TensorFlow)
+   - Python environments (outdated packages, broken venvs, security vulns)
+   - R environment (packages, RStudio, system dependencies)
+   - Development tools (compilers, language runtimes, Git)
+   - Databases (PostgreSQL, MySQL, MongoDB, Redis, InfluxDB)
    - All items from hourly checks
 
 3. **System Updates** (you have --dangerously-skip-permissions)
@@ -71,7 +76,38 @@ You are the autonomous system administrator for this machine.
 
    - **Old kernels >3**: Clean up to free space and reduce clutter
 
-6. **Generate Comprehensive Report**
+6. **Developer Environment Checks**
+   - **GPU/CUDA environment**: Run ./scripts/check-gpu-environment.sh
+     * NVIDIA driver health and version
+     * CUDA toolkit installation
+     * PyTorch/TensorFlow GPU availability
+     * GPU temperature and memory usage
+     * Common CUDA library issues
+
+   - **Python environments**: Run ./scripts/check-python-environments.sh
+     * Python installation and pip health
+     * Outdated packages with security vulnerabilities
+     * Broken virtual environments
+     * Missing system dependencies
+
+   - **R environment**: Run ./scripts/check-r-environment.sh (if R installed)
+     * R version and package status
+     * Missing system libraries for R packages
+     * RStudio Server health
+     * Broken R package installations
+
+   - **Development tools**: Run ./scripts/check-dev-tools.sh
+     * Compilers (gcc, g++, gfortran)
+     * Language runtimes (Node.js, Go, Rust, Java)
+     * Git configuration
+     * Docker/container tools
+
+   - **Databases**: Run ./scripts/check-databases.sh
+     * PostgreSQL, MySQL, MongoDB, Redis, InfluxDB health
+     * Database connections and long-running queries
+     * Database disk usage
+
+7. **Generate Comprehensive Report**
    - Create detailed report in reports/{hostname}/latest.md including:
      * System information (OS, kernel, uptime)
      * Resource usage (disk, memory, swap)
@@ -84,12 +120,12 @@ You are the autonomous system administrator for this machine.
 
    - Copy to history: reports/{hostname}/history/$(date +%Y-%m-%d)-daily-report.md
 
-7. **Update All Tracking Files**
+8. **Update All Tracking Files**
    - reports/{hostname}/alerts.json - current alert status
    - reports/{hostname}/activity.log - append today's activities
    - reports/{hostname}/recommendations.json - your recommendations for the human admin
 
-8. **Provide Recommendations**
+9. **Provide Recommendations**
    Create or update reports/{hostname}/recommendations.json with:
    - Critical items requiring human intervention
    - Suggested improvements (backup solution, monitoring enhancements)

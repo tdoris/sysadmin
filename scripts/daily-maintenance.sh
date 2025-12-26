@@ -263,6 +263,36 @@ check_temp_directories() {
     fi
 }
 
+# Check GPU and CUDA environment
+check_gpu_environment() {
+    log_info "Checking GPU environment..."
+    "$SCRIPT_DIR/check-gpu-environment.sh"
+}
+
+# Check Python environments
+check_python_environments() {
+    log_info "Checking Python environments..."
+    "$SCRIPT_DIR/check-python-environments.sh"
+}
+
+# Check R environment
+check_r_environment() {
+    log_info "Checking R environment..."
+    "$SCRIPT_DIR/check-r-environment.sh"
+}
+
+# Check development tools
+check_dev_tools() {
+    log_info "Checking development tools..."
+    "$SCRIPT_DIR/check-dev-tools.sh"
+}
+
+# Check databases
+check_databases() {
+    log_info "Checking databases..."
+    "$SCRIPT_DIR/check-databases.sh"
+}
+
 # Generate comprehensive system report
 generate_system_report() {
     log_info "Generating comprehensive system report..."
@@ -471,6 +501,13 @@ main() {
     check_broken_symlinks
     check_network_performance
     check_temp_directories
+
+    # Developer environment checks
+    check_gpu_environment
+    check_python_environments
+    check_r_environment
+    check_dev_tools
+    check_databases
 
     # Generate comprehensive report
     generate_system_report
