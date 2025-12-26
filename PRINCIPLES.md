@@ -89,8 +89,9 @@ This system is designed for **developer workstations and research computing mach
 - Responsive desktop
 - Quick compile/build times
 - No unnecessary background processes
+- Network tuned for high-bandwidth connections (transmit/receive buffers)
 
-**Why it matters:** Developers spend all day on these machines. Slowness is expensive.
+**Why it matters:** Developers spend all day on these machines. Slowness is expensive. Modern workstations often have gigabit+ connections but default network settings from dial-up era.
 
 ### 3. Stability & Reliability (High Priority)
 
@@ -118,19 +119,28 @@ This system is designed for **developer workstations and research computing mach
 
 **Why it matters:** Hardware failures are expensive. Early warning prevents data loss.
 
-### 4. Backup & Data Protection (Medium Priority)
+### 4. Data Safety Philosophy (Low-Medium Priority)
 
-**Practical Backups:**
-- Home directory backups
-- Project directories
-- Configuration files
-- Verify backups are working
+**Developer Workstation Approach:**
+- **Code**: Should be in git repositories, pushed to remote (GitHub, GitLab, etc.)
+- **Configuration**: Ideally in dotfiles repos or documented
+- **Environment**: Should be reproducible from scratch (Dockerfiles, requirements.txt, etc.)
+- **Machine is ephemeral**: Should be able to lose the machine and rebuild
 
-**Why it matters:** Data loss is unacceptable. But over-engineered backup solutions don't get used.
+**Why backups are less critical here:**
+- Code is the valuable asset, and it's already backed up (git)
+- Development environments can be rebuilt
+- Data that can't be recreated should be in version control or remote storage
 
-**Approach:** Simple, automated, verified backups of important data. Don't overthink it.
+**Optional Backup Use Cases:**
+- Local drafts/notes not yet committed
+- Configuration files not in version control
+- Downloaded datasets that are expensive to re-download
+- Personal files mixed with development work
 
-### 5. Basic Security (Medium Priority)
+**Recommendation:** Suggest backup tools at INFO level, not CRITICAL. It's a nice-to-have convenience, not a critical requirement.
+
+### 5. Basic Security (Low-Medium Priority)
 
 **Cover the Basics:**
 - No default passwords
@@ -177,20 +187,21 @@ This system is designed for **developer workstations and research computing mach
 
 - Disk space trend monitoring
 - Memory usage patterns
+- Network performance tuning (TCP buffers for fast connections)
 - Service startup time optimization
 - Desktop responsiveness
 
 **Why third:** Continuous improvement, compounding benefits over time.
 
-### Phase 4: Backup & Protection (One-time + Monitoring)
+### Phase 4: Optional Enhancements (As Needed)
 
-**Focus:** Data safety net
+**Focus:** Nice-to-have conveniences
 
-- Automated backup setup
-- Backup verification
-- Important data cataloging
+- Optional backup setup for non-git data
+- Configuration backup/dotfiles repo
+- Performance baseline tracking
 
-**Why fourth:** Important but not urgent if done correctly once.
+**Why fourth:** Not critical for developer workstations where code is in git.
 
 ## Autonomous Operation Guidelines
 
@@ -278,8 +289,8 @@ This system is designed for **developer workstations and research computing mach
 1. ✓ Developer never runs out of disk space
 2. ✓ System stays responsive and fast
 3. ✓ Software stays reasonably current
-4. ✓ No data loss from lack of backups
-5. ✓ Updates don't break development workflows
+4. ✓ Updates don't break development workflows
+5. ✓ Hardware issues detected before failure
 
 **Secondary goals:**
 1. ✓ Minimize manual maintenance time

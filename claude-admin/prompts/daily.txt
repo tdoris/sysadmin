@@ -101,14 +101,7 @@ You are the autonomous system administrator for this machine.
 ```json
 {
   "generated": "2025-12-26T14:00:00Z",
-  "critical": [
-    {
-      "title": "No Backup Solution",
-      "description": "System has no backup configured. Recommend installing Timeshift for system snapshots and Restic for data backups.",
-      "action": "Install and configure backup tools",
-      "priority": "critical"
-    }
-  ],
+  "critical": [],
   "high": [
     {
       "title": "Reboot Required",
@@ -126,6 +119,12 @@ You are the autonomous system administrator for this machine.
     }
   ],
   "optimizations": [
+    {
+      "title": "Optional Backup for Non-Git Data",
+      "description": "Consider backup solution for local notes, configs, or datasets not in version control.",
+      "action": "Optional: Install Timeshift for system snapshots or Restic for data backups",
+      "priority": "low"
+    },
     {
       "title": "Mainline Kernel",
       "description": "Running kernel 6.14.x (not LTS). Consider reverting to 6.8.x for stability.",
@@ -158,8 +157,9 @@ Current Status:
   - Disk: 31% (was 45%)
   - Memory: 12%
   - Reboot required: YES (schedule when convenient)
-Critical Alerts: 1 (no backup solution)
+Critical Alerts: 0
 Medium Alerts: 1 (reboot pending)
+Suggestions: Consider optional backup for non-git data
 
 ## Important Notes
 

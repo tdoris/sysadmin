@@ -203,6 +203,35 @@ check_broken_symlinks() {
     fi
 }
 
+# Check and optimize network performance settings
+check_network_performance() {
+    log_info "Checking network performance settings..."
+
+    local current_rmem=$(sysctl -n net.core.rmem_max 2>/dev/null || echo "0")
+    local current_wmem=$(sysctl -n net.core.wmem_max 2>/dev/null || echo "0")
+
+    # Check if buffers are smaller than 128MB (optimal for gigabit+)
+    if [[ $current_rmem -lt 134217728 ]] || [[ $current_wmem -lt 134217728 ]]; then
+        log_info "Network settings suboptimal for high-bandwidth (current max buffers: ${current_rmem} / ${current_wmem})"
+
+        update_alerts "info" "network-tuning" \
+            "Network Performance Tuning Available" \
+            "TCP buffer sizes are optimized for slow connections. Tuning can improve git, docker, and SSH performance on fast connections."
+
+        if [[ $AUTO_REMEDIATE -eq 1 && $DRY_RUN -eq 0 ]]; then
+            log_info "Applying network performance tuning..."
+            "$SCRIPT_DIR/remediation/tune-network.sh"
+            log_info "Network tuning applied"
+            clear_alert "network-tuning"
+        else
+            log_info "Run ./scripts/remediation/tune-network.sh to optimize"
+        fi
+    else
+        log_info "✓ Network settings optimized for high-bandwidth connections"
+        clear_alert "network-tuning"
+    fi
+}
+
 # Check and clean temp directories
 check_temp_directories() {
     log_info "Checking temp directories..."
@@ -440,6 +469,7 @@ main() {
     check_log_rotation
     check_hardware_health
     check_broken_symlinks
+    check_network_performance
     check_temp_directories
 
     # Generate comprehensive report
