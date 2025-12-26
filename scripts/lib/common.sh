@@ -107,7 +107,7 @@ is_reboot_required() {
 
 # Get count of available updates
 get_update_count() {
-    apt list --upgradable 2>/dev/null | grep -c upgradable || echo "0"
+    apt list --upgradable 2>/dev/null | grep upgradable | grep -v "Listing" | wc -l
 }
 
 # Check if firewall (ufw) is enabled

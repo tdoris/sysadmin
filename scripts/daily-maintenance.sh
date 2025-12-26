@@ -236,8 +236,8 @@ check_network_performance() {
 check_temp_directories() {
     log_info "Checking temp directories..."
 
-    local tmp_size=$(du -sm /tmp 2>/dev/null | awk '{print $1}' || echo "0")
-    local var_tmp_size=$(du -sm /var/tmp 2>/dev/null | awk '{print $1}' || echo "0")
+    local tmp_size=$(du -sm /tmp 2>/dev/null | awk '{print $1}' | tr -d '\n' || echo "0")
+    local var_tmp_size=$(du -sm /var/tmp 2>/dev/null | awk '{print $1}' | tr -d '\n' || echo "0")
 
     log_info "/tmp size: ${tmp_size}MB"
     log_info "/var/tmp size: ${var_tmp_size}MB"
