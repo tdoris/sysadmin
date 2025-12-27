@@ -23,6 +23,7 @@ function startAutoRefresh() {
 function refreshAll() {
     console.log('Refreshing dashboard...');
     loadSystemStatus();
+    loadMLEnvironment();
     loadPendingApprovals();
     loadAlerts();
     loadActivity();
@@ -608,5 +609,126 @@ function copyCommand() {
         }, 2000);
     }).catch(err => {
         console.error('Failed to copy:', err);
+    });
+}
+
+// ========================================
+// ML Environment Functions
+// ========================================
+
+// Load ML environment data
+async function loadMLEnvironment() {
+    try {
+        const response = await fetch('/api/ml-environment');
+        const data = await response.json();
+        updateMLStatus(data);
+    } catch (error) {
+        console.error('Error fetching ML environment:', error);
+        // Set unavailable state
+        setMLUnavailable();
+    }
+}
+
+// Update ML status displays
+function updateMLStatus(data) {
+    // Update GPU Card
+    const gpuCard = document.getElementById('gpu-card');
+
+    if (data.gpu && data.gpu.present) {
+        // GPU is present and working
+        document.getElementById('gpu-model').textContent = data.gpu.name || 'Unknown GPU';
+        document.getElementById('gpu-temp').textContent = `${data.gpu.temperature_c}°C`;
+        document.getElementById('gpu-memory').textContent =
+            `${data.gpu.memory_used_mb}MB / ${data.gpu.memory_total_mb}MB`;
+        document.getElementById('gpu-util').textContent = `${data.gpu.utilization_percent}%`;
+        document.getElementById('gpu-driver').textContent = `Driver: ${data.gpu.driver_version}`;
+
+        // Remove all status classes first
+        gpuCard.classList.remove('warning', 'critical', 'unavailable');
+
+        // Add temperature-based status class
+        const temp = parseInt(data.gpu.temperature_c);
+        if (temp > 95) {
+            gpuCard.classList.add('critical');
+        } else if (temp > 85) {
+            gpuCard.classList.add('warning');
+        }
+    } else {
+        // No GPU detected
+        document.getElementById('gpu-model').textContent = 'No GPU Detected';
+        document.getElementById('gpu-temp').textContent = '--';
+        document.getElementById('gpu-memory').textContent = '--';
+        document.getElementById('gpu-util').textContent = '--';
+        document.getElementById('gpu-driver').textContent = 'Driver: --';
+        gpuCard.classList.add('unavailable');
+    }
+
+    // Update CUDA Status
+    if (data.cuda) {
+        updateFrameworkCard('cuda', {
+            installed: data.cuda.toolkit_installed,
+            version: data.cuda.toolkit_version || data.cuda.driver_version,
+            status: data.cuda.toolkit_installed ? 'healthy' : 'not_installed',
+            status_message: data.cuda.toolkit_installed
+                ? `Toolkit ${data.cuda.toolkit_version}`
+                : 'Not installed'
+        });
+    }
+
+    // Update PyTorch Status
+    if (data.pytorch) {
+        updateFrameworkCard('pytorch', data.pytorch);
+    }
+
+    // Update TensorFlow Status
+    if (data.tensorflow) {
+        updateFrameworkCard('tensorflow', data.tensorflow);
+    }
+}
+
+// Update individual framework card
+function updateFrameworkCard(name, data) {
+    const versionEl = document.getElementById(`${name}-version`);
+    const statusEl = document.getElementById(`${name}-status`);
+    const card = document.getElementById(`${name}-card`);
+
+    if (!versionEl || !statusEl || !card) {
+        console.warn(`Framework card elements not found for: ${name}`);
+        return;
+    }
+
+    // Reset classes
+    card.classList.remove('not-installed');
+    statusEl.className = 'framework-status';
+
+    if (data.installed) {
+        versionEl.textContent = data.version || 'Unknown';
+        statusEl.textContent = data.status_message || '';
+        statusEl.classList.add(`status-${data.status || 'healthy'}`);
+    } else {
+        versionEl.textContent = 'Not Installed';
+        statusEl.textContent = '';
+        card.classList.add('not-installed');
+    }
+}
+
+// Set ML environment to unavailable state
+function setMLUnavailable() {
+    const gpuCard = document.getElementById('gpu-card');
+    gpuCard.classList.add('unavailable');
+
+    document.getElementById('gpu-model').textContent = 'Data Unavailable';
+    document.getElementById('gpu-temp').textContent = '--';
+    document.getElementById('gpu-memory').textContent = '--';
+    document.getElementById('gpu-util').textContent = '--';
+    document.getElementById('gpu-driver').textContent = 'Driver: --';
+
+    // Set frameworks to unavailable
+    ['cuda', 'pytorch', 'tensorflow'].forEach(name => {
+        updateFrameworkCard(name, {
+            installed: false,
+            status: 'unavailable',
+            status_message: ''
+        });
     });
 }

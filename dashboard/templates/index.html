@@ -51,6 +51,62 @@
                     <span class="value small" id="uptime">--</span>
                 </div>
             </div>
+            <div class="card gpu-card" id="gpu-card">
+                <h3>🎮 GPU</h3>
+                <div class="gpu-info">
+                    <div class="gpu-model" id="gpu-model">--</div>
+                    <div class="gpu-metrics">
+                        <div class="gpu-metric">
+                            <span class="label">Temp:</span>
+                            <span class="value" id="gpu-temp">--</span>
+                        </div>
+                        <div class="gpu-metric">
+                            <span class="label">Memory:</span>
+                            <span class="value" id="gpu-memory">--</span>
+                        </div>
+                        <div class="gpu-metric">
+                            <span class="label">Util:</span>
+                            <span class="value" id="gpu-util">--</span>
+                        </div>
+                    </div>
+                    <div class="gpu-driver" id="gpu-driver">Driver: --</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ML Framework Status Section -->
+        <section class="ml-frameworks-section">
+            <h2>Machine Learning Environment</h2>
+            <p class="section-description">System-wide ML framework installations (check virtual environments for project-specific installations)</p>
+            <div class="frameworks-grid">
+                <div class="framework-card" id="cuda-card">
+                    <div class="framework-icon">⚡</div>
+                    <div class="framework-info">
+                        <h4>CUDA Toolkit</h4>
+                        <div class="framework-version" id="cuda-version">--</div>
+                        <div class="framework-status" id="cuda-status">--</div>
+                    </div>
+                </div>
+                <div class="framework-card" id="pytorch-card">
+                    <div class="framework-icon">🔥</div>
+                    <div class="framework-info">
+                        <h4>PyTorch</h4>
+                        <div class="framework-version" id="pytorch-version">--</div>
+                        <div class="framework-status" id="pytorch-status">--</div>
+                    </div>
+                </div>
+                <div class="framework-card" id="tensorflow-card">
+                    <div class="framework-icon">🧠</div>
+                    <div class="framework-info">
+                        <h4>TensorFlow</h4>
+                        <div class="framework-version" id="tensorflow-version">--</div>
+                        <div class="framework-status" id="tensorflow-status">--</div>
+                    </div>
+                </div>
+            </div>
+            <div class="venvs-link">
+                <a href="/venvs" class="btn-secondary">📦 Browse Virtual Environments →</a>
+            </div>
         </section>
 
         <!-- Pending Approvals Section -->

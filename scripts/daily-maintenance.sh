@@ -293,6 +293,39 @@ check_databases() {
     "$SCRIPT_DIR/check-databases.sh"
 }
 
+# Collect ML environment data for dashboard
+collect_ml_environment() {
+    log_info "Collecting ML/AI environment data for dashboard..."
+
+    if [[ -f "$SCRIPT_DIR/collect-ml-environment.sh" ]]; then
+        "$SCRIPT_DIR/collect-ml-environment.sh"
+        log_info "ML environment data collected"
+    else
+        log_debug "collect-ml-environment.sh not found, skipping"
+    fi
+}
+
+# Scan Python virtual environments (cached for 6 hours)
+scan_python_venvs() {
+    log_info "Scanning Python virtual environments..."
+
+    local venvs_file="$REPORTS_DIR/python-venvs.json"
+    local cache_minutes=360  # 6 hours
+
+    # Check if scan is needed (file doesn't exist or is older than cache period)
+    if [[ ! -f "$venvs_file" ]] || [[ $(find "$venvs_file" -mmin +${cache_minutes} 2>/dev/null | wc -l) -gt 0 ]]; then
+        if [[ -f "$SCRIPT_DIR/scan-python-venvs.sh" ]]; then
+            log_info "Running venv scan (cache expired or missing)..."
+            "$SCRIPT_DIR/scan-python-venvs.sh"
+            log_info "Virtual environment scan completed"
+        else
+            log_debug "scan-python-venvs.sh not found, skipping"
+        fi
+    else
+        log_info "Using cached venv data (less than ${cache_minutes} minutes old)"
+    fi
+}
+
 # Generate comprehensive system report
 generate_system_report() {
     log_info "Generating comprehensive system report..."
@@ -514,6 +547,10 @@ main() {
     check_r_environment
     check_dev_tools
     check_databases
+
+    # Dashboard data collection
+    collect_ml_environment
+    scan_python_venvs
 
     # Generate comprehensive report
     generate_system_report

@@ -382,6 +382,33 @@ def api_deny(approval_id):
         }), 400
 
 
+@app.route('/api/ml-environment')
+def api_ml_environment():
+    """Get ML environment status (GPU, CUDA, PyTorch, TensorFlow)"""
+    ml_env_file = REPORTS_DIR / 'ml-environment.json'
+    ml_env = read_json(ml_env_file, {
+        'gpu': {'present': False, 'status': 'unavailable'},
+        'cuda': {'toolkit_installed': False},
+        'pytorch': {'installed': False, 'status': 'not_installed'},
+        'tensorflow': {'installed': False, 'status': 'not_installed'}
+    })
+    return jsonify(ml_env)
+
+
+@app.route('/api/python-venvs')
+def api_python_venvs():
+    """Get list of Python virtual environments"""
+    venvs_file = REPORTS_DIR / 'python-venvs.json'
+    venvs_data = read_json(venvs_file, {'venvs': []})
+    return jsonify(venvs_data)
+
+
+@app.route('/venvs')
+def venvs_page():
+    """Virtual environments browser page"""
+    return render_template('venvs.html')
+
+
 if __name__ == '__main__':
     # Ensure reports directory exists
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)

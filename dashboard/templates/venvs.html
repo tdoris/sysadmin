@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Virtual Environments - {{ hostname }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container venvs-page">
+        <header>
+            <h1>📦 Python Virtual Environments</h1>
+            <div class="header-actions">
+                <a href="/" class="btn-secondary">← Back to Dashboard</a>
+                <button onclick="refreshVenvs()" class="btn-action">🔄 Refresh</button>
+            </div>
+        </header>
+
+        <!-- Summary Stats -->
+        <section class="venvs-summary">
+            <div class="stat-card">
+                <div class="stat-value" id="total-venvs">--</div>
+                <div class="stat-label">Total Virtual Environments</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="total-size">--</div>
+                <div class="stat-label">Total Disk Space</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="pytorch-count">--</div>
+                <div class="stat-label">With PyTorch</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="tensorflow-count">--</div>
+                <div class="stat-label">With TensorFlow</div>
+            </div>
+        </section>
+
+        <!-- Filters & Search -->
+        <section class="venvs-controls">
+            <div class="search-box">
+                <input type="text" id="venv-search" placeholder="🔍 Search by path..." oninput="filterVenvs()">
+            </div>
+
+            <div class="filters">
+                <div class="filter-group">
+                    <label class="filter-label">Frameworks:</label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="filter-pytorch" onchange="filterVenvs()">
+                        🔥 PyTorch
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="filter-tensorflow" onchange="filterVenvs()">
+                        🧠 TensorFlow
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="filter-numpy" onchange="filterVenvs()">
+                        🔢 NumPy
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="filter-pandas" onchange="filterVenvs()">
+                        🐼 Pandas
+                    </label>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Sort by:</label>
+                    <select id="sort-select" onchange="sortAndRenderVenvs()">
+                        <option value="modified-desc">Last Modified (Newest)</option>
+                        <option value="modified-asc">Last Modified (Oldest)</option>
+                        <option value="size-desc">Size (Largest)</option>
+                        <option value="size-asc">Size (Smallest)</option>
+                        <option value="packages-desc">Most Packages</option>
+                        <option value="packages-asc">Least Packages</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="results-count">
+                Showing <span id="shown-count">0</span> of <span id="total-count">0</span> virtual environments
+            </div>
+        </section>
+
+        <!-- Virtual Environments Grid -->
+        <section class="venvs-grid" id="venvs-grid">
+            <div class="loading-message">
+                <p>Loading virtual environments...</p>
+            </div>
+        </section>
+
+        <footer>
+            <p>Last scanned: <span id="scan-time">--</span></p>
+            <p class="help-text">Virtual environments are scanned during daily maintenance. Run <code>./scripts/scan-python-venvs.sh</code> to update manually.</p>
+        </footer>
+    </div>
+
+    <script>
+        // Global variables
+        let venvsData = [];
+        let filteredVenvs = [];
+
+        // Fetch virtual environments data
+        async function fetchVenvs() {
+            try {
+                const response = await fetch('/api/python-venvs');
+                const data = await response.json();
+                venvsData = data.venvs || [];
+                updateSummary(data);
+                filterVenvs(); // This will also render
+            } catch (error) {
+                console.error('Error fetching venvs:', error);
+                document.getElementById('venvs-grid').innerHTML =
+                    '<div class="error-message"><p>Error loading virtual environments</p></div>';
+            }
+        }
+
+        // Update summary statistics
+        function updateSummary(data) {
+            const venvs = data.venvs || [];
+
+            document.getElementById('total-venvs').textContent = venvs.length;
+
+            const totalSize = venvs.reduce((sum, v) => sum + (v.size_mb || 0), 0);
+            document.getElementById('total-size').textContent =
+                totalSize > 1024 ? `${(totalSize/1024).toFixed(1)} GB` : `${totalSize.toFixed(0)} MB`;
+
+            document.getElementById('pytorch-count').textContent =
+                venvs.filter(v => v.has_pytorch).length;
+
+            document.getElementById('tensorflow-count').textContent =
+                venvs.filter(v => v.has_tensorflow).length;
+
+            document.getElementById('scan-time').textContent =
+                data.scanned ? new Date(data.scanned).toLocaleString() : 'Unknown';
+        }
+
+        // Filter virtual environments based on search and checkboxes
+        function filterVenvs() {
+            const searchTerm = document.getElementById('venv-search').value.toLowerCase();
+            const filterPyTorch = document.getElementById('filter-pytorch').checked;
+            const filterTensorFlow = document.getElementById('filter-tensorflow').checked;
+            const filterNumPy = document.getElementById('filter-numpy').checked;
+            const filterPandas = document.getElementById('filter-pandas').checked;
+
+            filteredVenvs = venvsData.filter(venv => {
+                const matchesSearch = !searchTerm || venv.path.toLowerCase().includes(searchTerm);
+                const matchesPyTorch = !filterPyTorch || venv.has_pytorch;
+                const matchesTensorFlow = !filterTensorFlow || venv.has_tensorflow;
+                const matchesNumPy = !filterNumPy || venv.has_numpy;
+                const matchesPandas = !filterPandas || venv.has_pandas;
+
+                return matchesSearch && matchesPyTorch && matchesTensorFlow && matchesNumPy && matchesPandas;
+            });
+
+            sortAndRenderVenvs();
+        }
+
+        // Sort and render filtered venvs
+        function sortAndRenderVenvs() {
+            const sortBy = document.getElementById('sort-select').value;
+            let sorted = [...filteredVenvs];
+
+            switch(sortBy) {
+                case 'modified-desc':
+                    sorted.sort((a, b) => (b.last_modified || 0) - (a.last_modified || 0));
+                    break;
+                case 'modified-asc':
+                    sorted.sort((a, b) => (a.last_modified || 0) - (b.last_modified || 0));
+                    break;
+                case 'size-desc':
+                    sorted.sort((a, b) => (b.size_mb || 0) - (a.size_mb || 0));
+                    break;
+                case 'size-asc':
+                    sorted.sort((a, b) => (a.size_mb || 0) - (b.size_mb || 0));
+                    break;
+                case 'packages-desc':
+                    sorted.sort((a, b) => (b.package_count || 0) - (a.package_count || 0));
+                    break;
+                case 'packages-asc':
+                    sorted.sort((a, b) => (a.package_count || 0) - (b.package_count || 0));
+                    break;
+            }
+
+            renderVenvs(sorted);
+            updateResultsCount(sorted.length, venvsData.length);
+        }
+
+        // Update results count display
+        function updateResultsCount(shown, total) {
+            document.getElementById('shown-count').textContent = shown;
+            document.getElementById('total-count').textContent = total;
+        }
+
+        // Render virtual environments grid
+        function renderVenvs(venvs) {
+            const grid = document.getElementById('venvs-grid');
+
+            if (venvs.length === 0) {
+                grid.innerHTML = '<div class="empty-message"><p>No virtual environments found matching your filters</p></div>';
+                return;
+            }
+
+            grid.innerHTML = venvs.map(venv => createVenvCard(venv)).join('');
+        }
+
+        // Create individual venv card HTML
+        function createVenvCard(venv) {
+            const frameworks = [];
+            if (venv.has_pytorch) frameworks.push('<span class="badge pytorch">🔥 PyTorch</span>');
+            if (venv.has_tensorflow) frameworks.push('<span class="badge tensorflow">🧠 TensorFlow</span>');
+            if (venv.has_numpy) frameworks.push('<span class="badge numpy">🔢 NumPy</span>');
+            if (venv.has_pandas) frameworks.push('<span class="badge pandas">🐼 Pandas</span>');
+
+            const relativeTime = venv.last_modified_date ?
+                getRelativeTime(new Date(venv.last_modified_date)) : 'Unknown';
+
+            const cardId = btoa(venv.path).replace(/[^a-zA-Z0-9]/g, '');
+            const size = venv.size_mb >= 1024 ?
+                `${(venv.size_mb / 1024).toFixed(1)} GB` :
+                `${venv.size_mb.toFixed(0)} MB`;
+
+            const packagesHtml = venv.packages && venv.packages.length > 0 ?
+                venv.packages.map(pkg =>
+                    `<div class="package-item">
+                        <span class="pkg-name">${pkg.name}</span>
+                        <span class="pkg-version">${pkg.version}</span>
+                    </div>`
+                ).join('') :
+                '<p class="no-packages">No packages found</p>';
+
+            return `
+                <div class="venv-card">
+                    <div class="venv-header">
+                        <div class="venv-path" title="${venv.path}">${shortenPath(venv.path)}</div>
+                        <button onclick="toggleDetails('${cardId}')" class="btn-expand" id="btn-${cardId}">▼</button>
+                    </div>
+                    <div class="venv-meta">
+                        <span>🐍 Python ${venv.python_version || 'Unknown'}</span>
+                        <span>📦 ${venv.package_count || 0} packages</span>
+                        <span>💾 ${size}</span>
+                        <span>🕒 ${relativeTime}</span>
+                    </div>
+                    <div class="venv-frameworks">
+                        ${frameworks.length > 0 ? frameworks.join(' ') : '<span class="no-ml-frameworks">No ML frameworks</span>'}
+                    </div>
+                    <div class="venv-actions">
+                        <button onclick="copyActivateCommand('${venv.path.replace(/'/g, "\\'")}')" class="btn-sm">
+                            📋 Copy Activate
+                        </button>
+                        <button onclick="copyPathCommand('${venv.path.replace(/'/g, "\\'")}')" class="btn-sm">
+                            📂 Copy Path
+                        </button>
+                    </div>
+                    <div class="venv-details" id="details-${cardId}" style="display: none;">
+                        <h4>Installed Packages (${venv.package_count || 0})</h4>
+                        <div class="packages-search">
+                            <input type="text" placeholder="Search packages..."
+                                   oninput="filterPackages('${cardId}')"
+                                   id="search-${cardId}">
+                        </div>
+                        <div class="packages-list" id="packages-${cardId}">
+                            ${packagesHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Shorten path for display
+        function shortenPath(path) {
+            const maxLength = 60;
+            if (path.length <= maxLength) return path;
+
+            // Try to keep the last parts of the path
+            const parts = path.split('/');
+            let shortened = parts[parts.length - 1];
+
+            for (let i = parts.length - 2; i >= 0; i--) {
+                const newPath = parts[i] + '/' + shortened;
+                if (newPath.length > maxLength - 4) {
+                    return '.../' + shortened;
+                }
+                shortened = newPath;
+            }
+
+            return shortened;
+        }
+
+        // Get relative time string
+        function getRelativeTime(date) {
+            const now = new Date();
+            const diff = Math.floor((now - date) / 1000); // seconds
+
+            if (diff < 60) return 'just now';
+            if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+            if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+            if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+            if (diff < 2592000) return `${Math.floor(diff / 604800)}w ago`;
+            return `${Math.floor(diff / 2592000)}mo ago`;
+        }
+
+        // Toggle package details visibility
+        function toggleDetails(cardId) {
+            const details = document.getElementById(`details-${cardId}`);
+            const btn = document.getElementById(`btn-${cardId}`);
+
+            if (details.style.display === 'none') {
+                details.style.display = 'block';
+                btn.textContent = '▲';
+            } else {
+                details.style.display = 'none';
+                btn.textContent = '▼';
+            }
+        }
+
+        // Filter packages within a venv
+        function filterPackages(cardId) {
+            const searchTerm = document.getElementById(`search-${cardId}`).value.toLowerCase();
+            const packageItems = document.querySelectorAll(`#packages-${cardId} .package-item`);
+
+            packageItems.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(searchTerm) ? 'flex' : 'none';
+            });
+        }
+
+        // Copy activation command to clipboard
+        function copyActivateCommand(path) {
+            const command = `source ${path}/bin/activate`;
+            navigator.clipboard.writeText(command).then(() => {
+                showToast('Activation command copied!');
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                showToast('Failed to copy command');
+            });
+        }
+
+        // Copy path to clipboard
+        function copyPathCommand(path) {
+            navigator.clipboard.writeText(path).then(() => {
+                showToast('Path copied!');
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                showToast('Failed to copy path');
+            });
+        }
+
+        // Show toast notification
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 2000);
+        }
+
+        // Refresh venvs data
+        function refreshVenvs() {
+            fetchVenvs();
+            showToast('Refreshing virtual environments...');
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', fetchVenvs);
+    </script>
+</body>
+</html>
