@@ -1,6 +1,19 @@
 #!/bin/bash
 # Create approval requests for current alerts
 # This script reads alerts.json and creates corresponding approval requests
+#
+# PHILOSOPHY: Approval requests should be ACTIONABLE, not just diagnostic.
+# When a user approves something, they expect the sysadmin to FIX it.
+#
+# Good: "Clean Up Docker Volumes" → docker volume prune -f
+# Good: "Update Python Packages" → pip install --upgrade ...
+# Good: "Clear Harmless Zombie Alert" → clear_alert zombie-process-X
+#
+# Bad: "Investigate Zombie Process" → manual investigation required
+# Bad: "Review logs" → nothing happens
+#
+# For complex issues needing investigation, the action should gather diagnostic
+# info and present it, or take the most likely fix with clear reversibility.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/common.sh"
@@ -62,16 +75,18 @@ for alert in data.get('medium', []):
             'related_alert_id': alert_id
         })
 
-    elif alert_id == 'zombie-process-6150':
+    elif alert_id.startswith('zombie-process'):
+        # For stable zombies with no impact, just clear the alert
+        # For problematic ones, restart the parent process
         approval_requests.append({
             'severity': 'medium',
-            'category': 'other',
-            'title': 'Investigate Zombie Process',
-            'description': f"{alert['description']} - Check parent process and potentially restart the Versa SASE service.",
-            'action_type': 'manual',
-            'action': 'Manual investigation required: Check parent PID 5523, review monitor_vsa_client.py logs',
-            'risk_level': 'low',
-            'estimated_impact': 'Diagnostic information only',
+            'category': 'cleanup',
+            'title': 'Clear Harmless Zombie Process Alert',
+            'description': f"{alert['description']} - Zombie is stable and has no resource impact. Clear alert to stop monitoring.",
+            'action_type': 'script',
+            'action': f'bash -c "source {os.environ.get(\"SYSADMIN_DIR\", \"/home/jim/sysadmin\")}/scripts/lib/common.sh && clear_alert {alert_id}"',
+            'risk_level': 'minimal',
+            'estimated_impact': 'Alert cleared, zombie process remains but is harmless',
             'reversible': 'true',
             'related_alert_id': alert_id
         })

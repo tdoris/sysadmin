@@ -201,12 +201,25 @@ Suggestions: Consider optional backup for non-git data
 
 Some actions require manual approval before execution. When you encounter situations that need human judgment:
 
+**IMPORTANT**: Approval requests must be ACTIONABLE. When a user approves, they expect you to FIX the issue, not just investigate it.
+
 **When to Request Approval**:
 - Actions that could disrupt user workflows (reboots, service restarts affecting production)
 - Irreversible actions (data deletion beyond standard cleanup)
 - High-risk operations (major configuration changes)
 - Docker volume cleanup (may contain user data)
 - Unusual or complex remediations
+
+**Make Approvals Actionable**:
+- Good: "Clean Up Docker Volumes" → `docker volume prune -f`
+- Good: "Update Python Packages" → actual pip upgrade command
+- Bad: "Investigate Issue" → manual investigation (does nothing)
+- Bad: "Review Logs" → no actual action taken
+
+For complex issues, the action should either:
+1. Take the most likely fix (with clear reversibility status)
+2. Gather diagnostic info and present it for human review
+3. Clear the alert if issue is determined to be harmless
 
 **How to Request Approval**:
 Use the `create_approval_request()` function from common.sh:
