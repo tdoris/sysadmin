@@ -35,40 +35,57 @@ You could spend time learning sysadmin skills. Or you could let Claude Code hand
 
 ## What It Does
 
-### Prevents Disasters
+### System Configuration
+
+**Network Performance**
+- Optimizes TCP buffer sizes for high-bandwidth connections
+- Enables BBR congestion control for better throughput
+- Configures network stack for ML workloads
+
+**Security Baseline**
+- Ensures firewall is enabled and properly configured
+- Applies security updates automatically
+- Monitors for suspicious activity and failed logins
+
+**Performance Settings**
+- Tunes kernel parameters for development workloads
+- Optimizes disk I/O scheduling
+- Monitors and adjusts swap usage
+
+**Software Updates**
+- Keeps system packages current
+- Tracks and applies security patches
+- Manages kernel versions (keeps current + 1 previous)
+
+### Prevents Common Issues
 
 **Disk Space Management**
-- Monitors every hour, cleans when >85% full
-- Rotates logs, prunes Docker images, cleans package caches
-- Typical recovery: 10-50GB in minutes
+- Monitors every hour, auto-cleans when >85% full
+- Rotates large logs, prunes Docker images, cleans package caches
 
-**GPU/CUDA Environment** (the #1 ML developer pain point)
-- Checks NVIDIA driver health
-- Verifies PyTorch/TensorFlow GPU access
+**GPU/CUDA Environment**
+- Verifies NVIDIA driver health after kernel updates
+- Checks PyTorch/TensorFlow GPU access
 - Detects CUDA version mismatches
-- **Time saved**: 1-4 hours per incident
 
-**Python Environment Health**
-- Detects security vulnerabilities
-- Finds broken virtual environments
-- Identifies missing system dependencies
-- **Time saved**: 30min - 2 hours per issue
+**Python Environments**
+- Scans for security vulnerabilities in packages
+- Identifies broken virtual environments
+- Detects missing build dependencies
 
-**R Environment Management**
-- Tracks outdated packages
-- Detects missing system libraries (libcurl, libxml2, GDAL, GEOS)
+**R Environment**
+- Tracks outdated packages and system libraries
 - Monitors RStudio Server health
-- **Time saved**: 30-60 min per issue
+- Checks for missing compilation tools (libcurl, libxml2, GDAL, GEOS)
 
-**Production App Monitoring**
-- HTTP health checks every hour
-- Auto-restart on failure
-- Prevents stakeholder-facing outages
+**Production Apps**
+- HTTP health checks every hour with auto-restart on failure
+- Monitors systemd services and Docker containers
 
-**Development Tools & Databases**
-- Verifies compilers, language runtimes, Git
-- Monitors PostgreSQL, MySQL, MongoDB, Redis, InfluxDB
-- **Time saved**: 15-45 min per issue
+**Development Tools**
+- Verifies compilers (gcc, g++, gfortran) and build tools
+- Checks language runtimes (Node.js, Go, Rust, Java)
+- Monitors databases (PostgreSQL, MySQL, MongoDB, Redis, InfluxDB)
 
 ---
 
