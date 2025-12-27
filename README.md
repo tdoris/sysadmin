@@ -208,22 +208,60 @@ Example prompts:
 
 ---
 
-## Monitoring
+## Monitoring & Logs
 
 **Web Dashboard**: http://localhost:5050
-Real-time metrics, alerts, activity log, recommendations, app status
+Real-time metrics, alerts, activity log, recommendations, app status, approval requests
 
-**Activity Log**:
+### Activity & Maintenance Logs
+
+**Activity Log** - All sysadmin actions and maintenance activities:
 ```bash
 cat reports/$(hostname)/activity.log
 tail -f reports/$(hostname)/activity.log
 ```
 
-**Generated Reports**:
+**System Logs** - Detailed maintenance script logs:
 ```bash
-cat reports/$(hostname)/latest.md
+# Cron job logs (hourly and daily maintenance)
+sudo journalctl -u cron | grep sysadmin
+
+# Script execution logs
+ls -lh /var/log/sysadmin/
+
+# Today's maintenance log
+cat /var/log/sysadmin/daily-maintenance-$(date +%Y-%m-%d).log
+cat /var/log/sysadmin/hourly-check-$(date +%Y-%m-%d).log
+```
+
+### Status Reports & Alerts
+
+**Current System Status**:
+```bash
+cat reports/$(hostname)/latest.md           # Latest system report
+cat reports/$(hostname)/alerts.json         # Active alerts
+cat reports/$(hostname)/recommendations.json  # Sysadmin recommendations
+```
+
+**Historical Reports**:
+```bash
+ls -lh reports/$(hostname)/history/
+cat reports/$(hostname)/history/2025-12-27-daily-report.md
+```
+
+**Environment Checks**:
+```bash
 cat reports/$(hostname)/gpu-environment.txt
 cat reports/$(hostname)/python-environment.txt
+cat reports/$(hostname)/r-environment.txt
+```
+
+### Approval Workflow Logs
+
+**Pending & Completed Actions**:
+```bash
+cat reports/$(hostname)/pending-approvals.json  # All approval requests
+python3 -c "import json; data=json.load(open('reports/$(hostname)/pending-approvals.json')); print(f\"Pending: {len([x for x in data['items'] if x['status']=='pending'])}\nCompleted: {len([x for x in data['items'] if x['status']=='completed'])}\")"
 ```
 
 ---
