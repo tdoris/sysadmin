@@ -197,6 +197,43 @@ Critical Alerts: 0
 Medium Alerts: 1 (reboot pending)
 Suggestions: Consider optional backup for non-git data
 
+## Approval Workflow
+
+Some actions require manual approval before execution. When you encounter situations that need human judgment:
+
+**When to Request Approval**:
+- Actions that could disrupt user workflows (reboots, service restarts affecting production)
+- Irreversible actions (data deletion beyond standard cleanup)
+- High-risk operations (major configuration changes)
+- Docker volume cleanup (may contain user data)
+- Unusual or complex remediations
+
+**How to Request Approval**:
+Use the `create_approval_request()` function from common.sh:
+
+```bash
+create_approval_request \
+    "high" \                    # severity: critical, high, medium, low, info
+    "cleanup" \                 # category: cleanup, update, reboot, service, security, performance, other
+    "Docker Volume Cleanup" \   # title
+    "1.1GB reclaimable from unused Docker volumes" \  # description
+    "command" \                 # action_type: command, script, manual
+    "docker volume prune -f" \  # action to execute
+    "medium" \                  # risk_level: critical, high, medium, low, minimal
+    "1.1GB disk space reclaimed" \  # estimated_impact
+    "false" \                   # reversible: true or false
+    "docker-volume-cleanup"     # related_alert_id (optional)
+```
+
+**What Happens Next**:
+1. Request appears in the web dashboard (http://localhost:5050)
+2. User reviews the action details and can add comments/instructions
+3. User clicks "Approve" or "Deny"
+4. If approved, the action executes during the next maintenance run
+5. Results are logged and related alerts are cleared
+
+**Important**: Don't wait for approval - create the request and continue with other tasks. Approved actions will execute automatically.
+
 ## Important Notes
 
 - **Target Environment**: Developer workstation behind corporate firewall
@@ -212,3 +249,4 @@ Suggestions: Consider optional backup for non-git data
 - Test production apps after any changes
 - **Preserve user data and code** - only clean system maintenance items
 - Focus on resource management, not security hardening
+- Use approval workflow for actions requiring human judgment

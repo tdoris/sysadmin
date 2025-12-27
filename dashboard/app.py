@@ -157,6 +157,62 @@ def get_monitored_apps():
     return data.get('apps', {})
 
 
+def get_pending_approvals():
+    """Get list of pending approvals"""
+    approvals_file = REPORTS_DIR / 'pending-approvals.json'
+    data = read_json(approvals_file, {'items': []})
+
+    # Filter for pending items only
+    pending = [item for item in data.get('items', []) if item.get('status') == 'pending']
+
+    return {
+        'items': pending,
+        'count': len(pending)
+    }
+
+
+def update_approval_status(approval_id, new_status, user_comment=''):
+    """Update approval status"""
+    approvals_file = REPORTS_DIR / 'pending-approvals.json'
+
+    if not approvals_file.exists():
+        return False, "Approvals file not found"
+
+    try:
+        data = read_json(approvals_file, {'items': []})
+
+        # Find and update the approval
+        found = False
+        for item in data['items']:
+            if item['id'] == approval_id:
+                item['status'] = new_status
+
+                if new_status == 'approved':
+                    item['approved_at'] = datetime.now().isoformat()
+                    item['approved_by'] = 'dashboard'
+                    if user_comment:
+                        item['user_comment'] = user_comment
+
+                elif new_status == 'denied':
+                    if user_comment:
+                        item['user_comment'] = user_comment
+
+                found = True
+                break
+
+        if not found:
+            return False, f"Approval {approval_id} not found"
+
+        # Write back
+        with open(approvals_file, 'w') as f:
+            json.dump(data, f, indent=2)
+
+        return True, f"Approval {approval_id} updated to {new_status}"
+
+    except Exception as e:
+        return False, f"Error updating approval: {str(e)}"
+
+
 @app.route('/')
 def index():
     """Main dashboard page"""
@@ -262,6 +318,68 @@ def api_logs():
         return jsonify({'lines': output.split('\n')})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/pending-approvals')
+def api_pending_approvals():
+    """API endpoint for pending approvals"""
+    return jsonify(get_pending_approvals())
+
+
+@app.route('/api/approve/<approval_id>', methods=['POST'])
+def api_approve(approval_id):
+    """API endpoint to approve an action"""
+    data = request.get_json() or {}
+    user_comment = data.get('comment', '')
+
+    success, message = update_approval_status(approval_id, 'approved', user_comment)
+
+    if success:
+        # Trigger execution of approved actions
+        script_path = SYSADMIN_DIR / 'scripts' / 'execute-approved-actions.sh'
+        if script_path.exists():
+            try:
+                # Run in background
+                subprocess.Popen(
+                    [str(script_path)],
+                    cwd=str(SYSADMIN_DIR),
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
+                )
+            except Exception as e:
+                app.logger.error(f"Error triggering execution: {e}")
+
+        return jsonify({
+            'success': True,
+            'message': message,
+            'timestamp': datetime.now().isoformat()
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'error': message
+        }), 400
+
+
+@app.route('/api/deny/<approval_id>', methods=['POST'])
+def api_deny(approval_id):
+    """API endpoint to deny an action"""
+    data = request.get_json() or {}
+    user_comment = data.get('comment', '')
+
+    success, message = update_approval_status(approval_id, 'denied', user_comment)
+
+    if success:
+        return jsonify({
+            'success': True,
+            'message': message,
+            'timestamp': datetime.now().isoformat()
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'error': message
+        }), 400
 
 
 if __name__ == '__main__':

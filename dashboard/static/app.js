@@ -23,6 +23,7 @@ function startAutoRefresh() {
 function refreshAll() {
     console.log('Refreshing dashboard...');
     loadSystemStatus();
+    loadPendingApprovals();
     loadAlerts();
     loadActivity();
     loadRecommendations();
@@ -120,6 +121,206 @@ function renderAlert(container, alert, severity) {
         </div>
     `;
     container.appendChild(div);
+}
+
+// Load pending approvals
+async function loadPendingApprovals() {
+    try {
+        const response = await fetch('/api/pending-approvals');
+        const data = await response.json();
+
+        const section = document.getElementById('approvals-section');
+        const container = document.getElementById('approvals-container');
+
+        if (!data.items || data.items.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = 'block';
+        container.innerHTML = '';
+
+        // Render each pending approval
+        data.items.forEach(approval => renderApproval(container, approval));
+
+    } catch (error) {
+        console.error('Error loading pending approvals:', error);
+    }
+}
+
+// Render a single approval request
+function renderApproval(container, approval) {
+    const div = document.createElement('div');
+    div.className = `approval-card ${approval.severity}`;
+    div.id = `approval-${approval.id}`;
+
+    const riskBadge = getRiskBadge(approval.risk_level);
+    const reversibleBadge = approval.reversible ?
+        '<span class="badge badge-success">Reversible</span>' :
+        '<span class="badge badge-warning">Not reversible</span>';
+
+    div.innerHTML = `
+        <div class="approval-header">
+            <h3>${approval.title}</h3>
+            <div class="approval-badges">
+                <span class="badge badge-${approval.severity}">${approval.severity.toUpperCase()}</span>
+                ${riskBadge}
+                ${reversibleBadge}
+            </div>
+        </div>
+        <div class="approval-body">
+            <p><strong>Description:</strong> ${approval.description}</p>
+            ${approval.recommendation ? `<p><strong>Recommendation:</strong> ${approval.recommendation}</p>` : ''}
+            <p><strong>Action to be taken:</strong> <code>${approval.action}</code></p>
+            ${approval.estimated_impact ? `<p><strong>Expected impact:</strong> ${approval.estimated_impact}</p>` : ''}
+            <p class="approval-meta">
+                Created: ${new Date(approval.created).toLocaleString()} |
+                Category: ${approval.category} |
+                Type: ${approval.action_type}
+            </p>
+        </div>
+        <div class="approval-footer">
+            <div class="approval-comment">
+                <textarea id="comment-${approval.id}" placeholder="Optional: Add instructions or comments for Claude Code..."></textarea>
+            </div>
+            <div class="approval-actions">
+                <button onclick="approveAction('${approval.id}')" class="btn-approve">
+                    ✓ Approve
+                </button>
+                <button onclick="denyAction('${approval.id}')" class="btn-deny">
+                    ✗ Deny
+                </button>
+            </div>
+        </div>
+    `;
+
+    container.appendChild(div);
+}
+
+// Get risk level badge
+function getRiskBadge(riskLevel) {
+    const colors = {
+        'critical': 'danger',
+        'high': 'danger',
+        'medium': 'warning',
+        'low': 'info',
+        'minimal': 'success'
+    };
+    const color = colors[riskLevel] || 'info';
+    return `<span class="badge badge-${color}">Risk: ${riskLevel}</span>`;
+}
+
+// Approve an action
+async function approveAction(approvalId) {
+    const commentEl = document.getElementById(`comment-${approvalId}`);
+    const comment = commentEl ? commentEl.value.trim() : '';
+    const approvalCard = document.getElementById(`approval-${approvalId}`);
+
+    // Show processing state
+    approvalCard.classList.add('processing');
+
+    try {
+        const response = await fetch(`/api/approve/${approvalId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ comment })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Show success message
+            approvalCard.innerHTML = `
+                <div class="approval-success">
+                    <h3>✓ Approved</h3>
+                    <p>${data.message}</p>
+                    <p class="success-note">Claude Code is executing this action now. Check the Activity tab for progress.</p>
+                </div>
+            `;
+
+            // Remove after a delay
+            setTimeout(() => {
+                approvalCard.style.opacity = '0';
+                setTimeout(() => {
+                    approvalCard.remove();
+                    loadPendingApprovals(); // Refresh to check if section should be hidden
+                }, 500);
+            }, 3000);
+
+            // Refresh activity log
+            setTimeout(() => {
+                loadActivity();
+            }, 2000);
+
+        } else {
+            approvalCard.classList.remove('processing');
+            alert(`Error: ${data.error}`);
+        }
+
+    } catch (error) {
+        console.error('Error approving action:', error);
+        approvalCard.classList.remove('processing');
+        alert(`Error: ${error.message}`);
+    }
+}
+
+// Deny an action
+async function denyAction(approvalId) {
+    const commentEl = document.getElementById(`comment-${approvalId}`);
+    const comment = commentEl ? commentEl.value.trim() : '';
+    const approvalCard = document.getElementById(`approval-${approvalId}`);
+
+    if (!comment) {
+        alert('Please provide a reason for denying this action.');
+        commentEl.focus();
+        return;
+    }
+
+    // Show processing state
+    approvalCard.classList.add('processing');
+
+    try {
+        const response = await fetch(`/api/deny/${approvalId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ comment })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Show denied message
+            approvalCard.innerHTML = `
+                <div class="approval-denied">
+                    <h3>✗ Denied</h3>
+                    <p>${data.message}</p>
+                    <p class="denied-note">Reason: ${comment}</p>
+                </div>
+            `;
+
+            // Remove after a delay
+            setTimeout(() => {
+                approvalCard.style.opacity = '0';
+                setTimeout(() => {
+                    approvalCard.remove();
+                    loadPendingApprovals(); // Refresh to check if section should be hidden
+                }, 500);
+            }, 3000);
+
+        } else {
+            approvalCard.classList.remove('processing');
+            alert(`Error: ${data.error}`);
+        }
+
+    } catch (error) {
+        console.error('Error denying action:', error);
+        approvalCard.classList.remove('processing');
+        alert(`Error: ${error.message}`);
+    }
 }
 
 // Load recent activity

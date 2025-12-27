@@ -1,0 +1,111 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Pending Approvals Schema",
+  "description": "Schema for tracking actions that require manual approval before execution",
+  "type": "object",
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for this approval request (e.g., 'docker-volume-cleanup-2025-12-27')"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When this approval request was created"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low", "info"],
+            "description": "Priority/severity level of this action"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["cleanup", "update", "reboot", "service", "security", "performance", "other"],
+            "description": "Category of action"
+          },
+          "title": {
+            "type": "string",
+            "description": "Short title for this action"
+          },
+          "description": {
+            "type": "string",
+            "description": "Detailed description of the issue/situation"
+          },
+          "recommendation": {
+            "type": "string",
+            "description": "Recommended action to take"
+          },
+          "action_type": {
+            "type": "string",
+            "enum": ["command", "script", "manual"],
+            "description": "Type of action to execute"
+          },
+          "action": {
+            "type": "string",
+            "description": "Command or script to execute when approved"
+          },
+          "risk_level": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low", "minimal"],
+            "description": "Risk level of executing this action"
+          },
+          "estimated_impact": {
+            "type": "string",
+            "description": "Expected impact (e.g., '1.1GB disk space reclaimed', '5 minutes downtime')"
+          },
+          "reversible": {
+            "type": "boolean",
+            "description": "Whether this action can be easily reversed"
+          },
+          "related_alert_id": {
+            "type": "string",
+            "description": "ID of related alert in alerts.json (if any)"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "approved", "denied", "executing", "completed", "failed"],
+            "description": "Current status of this approval request"
+          },
+          "approved_at": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "When this was approved (null if not approved)"
+          },
+          "approved_by": {
+            "type": ["string", "null"],
+            "description": "Username or identifier of who approved (null if not approved)"
+          },
+          "user_comment": {
+            "type": ["string", "null"],
+            "description": "User's comment/instructions when approving or denying"
+          },
+          "execution_started": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "When execution started (null if not started)"
+          },
+          "execution_completed": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "When execution completed (null if not completed)"
+          },
+          "execution_output": {
+            "type": ["string", "null"],
+            "description": "Output from executing the action (null if not executed)"
+          },
+          "execution_error": {
+            "type": ["string", "null"],
+            "description": "Error message if execution failed (null if no error)"
+          }
+        },
+        "required": ["id", "created", "severity", "category", "title", "description", "action_type", "action", "risk_level", "status"]
+      }
+    }
+  },
+  "required": ["items"]
+}

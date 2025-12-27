@@ -489,6 +489,12 @@ main() {
     # Ensure directories exist
     mkdir -p "$REPORTS_DIR/history"
 
+    # Execute approved actions first (from dashboard approval workflow)
+    if [[ -f "$SCRIPT_DIR/execute-approved-actions.sh" ]]; then
+        log_info "Checking for approved actions to execute..."
+        "$SCRIPT_DIR/execute-approved-actions.sh"
+    fi
+
     # Run all checks and maintenance
     run_hourly_checks
     check_system_updates

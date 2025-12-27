@@ -494,3 +494,234 @@ footer {
 .report-container table th {
     background: var(--bg-tertiary);
 }
+
+/* =============================================================================
+   Approvals Section
+   ============================================================================= */
+
+.approvals-section {
+    background: linear-gradient(135deg, #2d2d2d 0%, #3a3a3a 100%);
+    padding: 25px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    border: 2px solid var(--warning);
+}
+
+.approvals-section h2 {
+    margin-bottom: 10px;
+    font-size: 1.5rem;
+}
+
+.section-description {
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    font-size: 0.95rem;
+}
+
+.approval-card {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-left: 4px solid var(--accent);
+    transition: all 0.3s ease;
+}
+
+.approval-card.critical {
+    border-left-color: var(--critical);
+}
+
+.approval-card.high {
+    border-left-color: var(--high);
+}
+
+.approval-card.medium {
+    border-left-color: var(--medium);
+}
+
+.approval-card.processing {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.approval-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+    gap: 15px;
+}
+
+.approval-header h3 {
+    font-size: 1.3rem;
+    color: var(--text-primary);
+    margin: 0;
+    flex: 1;
+}
+
+.approval-badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-critical {
+    background: var(--critical);
+    color: white;
+}
+
+.badge-high {
+    background: var(--high);
+    color: white;
+}
+
+.badge-medium {
+    background: var(--medium);
+    color: black;
+}
+
+.badge-low,
+.badge-info {
+    background: var(--accent);
+    color: white;
+}
+
+.badge-success {
+    background: var(--success);
+    color: white;
+}
+
+.badge-warning {
+    background: var(--warning);
+    color: black;
+}
+
+.badge-danger {
+    background: var(--danger);
+    color: white;
+}
+
+.approval-body {
+    margin-bottom: 20px;
+}
+
+.approval-body p {
+    margin-bottom: 12px;
+    line-height: 1.6;
+}
+
+.approval-body code {
+    background: var(--bg-primary);
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    color: var(--accent);
+    font-size: 0.9rem;
+}
+
+.approval-meta {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    margin-top: 10px;
+}
+
+.approval-footer {
+    border-top: 1px solid var(--border);
+    padding-top: 15px;
+}
+
+.approval-comment {
+    margin-bottom: 15px;
+}
+
+.approval-comment textarea {
+    width: 100%;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.95rem;
+    min-height: 80px;
+    resize: vertical;
+}
+
+.approval-comment textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.approval-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.btn-approve,
+.btn-deny {
+    padding: 10px 24px;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-approve {
+    background: var(--success);
+    color: white;
+}
+
+.btn-approve:hover {
+    background: #00b85b;
+    transform: translateY(-1px);
+}
+
+.btn-deny {
+    background: var(--danger);
+    color: white;
+}
+
+.btn-deny:hover {
+    background: #e63946;
+    transform: translateY(-1px);
+}
+
+.approval-success,
+.approval-denied {
+    text-align: center;
+    padding: 30px;
+}
+
+.approval-success h3 {
+    color: var(--success);
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+}
+
+.approval-denied h3 {
+    color: var(--danger);
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+}
+
+.success-note,
+.denied-note {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-top: 10px;
+}

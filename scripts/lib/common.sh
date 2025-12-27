@@ -299,3 +299,295 @@ get_failed_login_count() {
 get_security_update_count() {
     apt list --upgradable 2>/dev/null | grep -i security | wc -l
 }
+
+# =============================================================================
+# Approval Workflow Functions
+# =============================================================================
+
+# Create a pending approval request
+# Args: severity, category, title, description, action_type, action, risk_level,
+#       estimated_impact, reversible, related_alert_id (optional)
+create_approval_request() {
+    local severity="$1"
+    local category="$2"
+    local title="$3"
+    local description="$4"
+    local action_type="$5"
+    local action="$6"
+    local risk_level="$7"
+    local estimated_impact="$8"
+    local reversible="$9"
+    local related_alert_id="${10:-}"
+
+    local approvals_file="$REPORTS_DIR/pending-approvals.json"
+    local approval_id="${category}-$(date +%Y-%m-%d-%H%M%S)"
+
+    log_info "Creating approval request: $approval_id - $title"
+
+    # Create Python script to add approval request
+    python3 <<EOF
+import json
+import os
+from datetime import datetime, UTC
+
+approvals_file = "$approvals_file"
+
+# Load existing approvals or create new
+if os.path.exists(approvals_file):
+    with open(approvals_file, 'r') as f:
+        data = json.load(f)
+else:
+    data = {"items": []}
+
+# Add new approval request
+new_approval = {
+    "id": "$approval_id",
+    "created": datetime.now(UTC).isoformat(),
+    "severity": "$severity",
+    "category": "$category",
+    "title": "$title",
+    "description": "$description",
+    "action_type": "$action_type",
+    "action": "$action",
+    "risk_level": "$risk_level",
+    "estimated_impact": "$estimated_impact",
+    "reversible": $(python3 -c "print('True' if '$reversible'.lower() in ['true', 'yes', '1'] else 'False')"),
+    "related_alert_id": "$related_alert_id" if "$related_alert_id" else None,
+    "status": "pending",
+    "approved_at": None,
+    "approved_by": None,
+    "user_comment": None,
+    "execution_started": None,
+    "execution_completed": None,
+    "execution_output": None,
+    "execution_error": None
+}
+
+data["items"].append(new_approval)
+
+# Write back
+with open(approvals_file, 'w') as f:
+    json.dump(data, f, indent=2)
+
+print(f"Created approval request: $approval_id")
+EOF
+}
+
+# Get pending approvals (returns JSON)
+get_pending_approvals() {
+    local approvals_file="$REPORTS_DIR/pending-approvals.json"
+
+    if [[ -f "$approvals_file" ]]; then
+        python3 <<EOF
+import json
+
+approvals_file = "$approvals_file"
+
+with open(approvals_file, 'r') as f:
+    data = json.load(f)
+
+# Filter for pending items only
+pending = [item for item in data["items"] if item["status"] == "pending"]
+
+print(json.dumps({"items": pending}, indent=2))
+EOF
+    else
+        echo '{"items": []}'
+    fi
+}
+
+# Get approved actions that haven't been executed yet
+get_approved_actions() {
+    local approvals_file="$REPORTS_DIR/pending-approvals.json"
+
+    if [[ -f "$approvals_file" ]]; then
+        python3 <<EOF
+import json
+
+approvals_file = "$approvals_file"
+
+with open(approvals_file, 'r') as f:
+    data = json.load(f)
+
+# Filter for approved but not yet executed
+approved = [item for item in data["items"] if item["status"] == "approved"]
+
+print(json.dumps({"items": approved}, indent=2))
+EOF
+    else
+        echo '{"items": []}'
+    fi
+}
+
+# Update approval status
+# Args: approval_id, new_status, user_comment (optional), execution_output (optional), execution_error (optional)
+update_approval_status() {
+    local approval_id="$1"
+    local new_status="$2"
+    local user_comment="${3:-}"
+    local execution_output="${4:-}"
+    local execution_error="${5:-}"
+
+    local approvals_file="$REPORTS_DIR/pending-approvals.json"
+
+    log_info "Updating approval $approval_id status to: $new_status"
+
+    python3 <<EOF
+import json
+import os
+from datetime import datetime, UTC
+
+approvals_file = "$approvals_file"
+approval_id = "$approval_id"
+new_status = "$new_status"
+user_comment = "$user_comment"
+execution_output = """$execution_output"""
+execution_error = """$execution_error"""
+
+if not os.path.exists(approvals_file):
+    print(f"Approvals file not found: {approvals_file}")
+    exit(1)
+
+with open(approvals_file, 'r') as f:
+    data = json.load(f)
+
+# Find and update the approval
+found = False
+for item in data["items"]:
+    if item["id"] == approval_id:
+        item["status"] = new_status
+
+        if new_status == "approved":
+            item["approved_at"] = datetime.now(UTC).isoformat()
+            item["approved_by"] = "dashboard"
+            if user_comment:
+                item["user_comment"] = user_comment
+
+        elif new_status == "denied":
+            if user_comment:
+                item["user_comment"] = user_comment
+
+        elif new_status == "executing":
+            item["execution_started"] = datetime.now(UTC).isoformat()
+
+        elif new_status == "completed":
+            item["execution_completed"] = datetime.now(UTC).isoformat()
+            if execution_output:
+                item["execution_output"] = execution_output
+
+        elif new_status == "failed":
+            item["execution_completed"] = datetime.now(UTC).isoformat()
+            if execution_error:
+                item["execution_error"] = execution_error
+
+        found = True
+        break
+
+if not found:
+    print(f"Approval {approval_id} not found")
+    exit(1)
+
+with open(approvals_file, 'w') as f:
+    json.dump(data, f, indent=2)
+
+print(f"Updated approval {approval_id} to status: {new_status}")
+EOF
+}
+
+# Execute an approved action
+# Args: approval_id
+execute_approved_action() {
+    local approval_id="$1"
+    local approvals_file="$REPORTS_DIR/pending-approvals.json"
+
+    log_info "Executing approved action: $approval_id"
+
+    # Get the action details
+    local action_details=$(python3 <<EOF
+import json
+import sys
+
+approvals_file = "$approvals_file"
+approval_id = "$approval_id"
+
+with open(approvals_file, 'r') as f:
+    data = json.load(f)
+
+for item in data["items"]:
+    if item["id"] == approval_id and item["status"] == "approved":
+        print(json.dumps(item))
+        sys.exit(0)
+
+sys.exit(1)
+EOF
+)
+
+    if [[ $? -ne 0 ]]; then
+        log_error "Approval $approval_id not found or not in approved status"
+        return 1
+    fi
+
+    # Extract action details
+    local action_type=$(echo "$action_details" | python3 -c "import sys, json; print(json.load(sys.stdin)['action_type'])")
+    local action=$(echo "$action_details" | python3 -c "import sys, json; print(json.load(sys.stdin)['action'])")
+    local user_comment=$(echo "$action_details" | python3 -c "import sys, json; print(json.load(sys.stdin).get('user_comment', ''))")
+
+    log_info "Action type: $action_type"
+    log_info "Action: $action"
+    if [[ -n "$user_comment" ]]; then
+        log_info "User comment: $user_comment"
+    fi
+
+    # Update status to executing
+    update_approval_status "$approval_id" "executing"
+
+    # Execute the action based on type
+    local output
+    local exit_code
+
+    case "$action_type" in
+        command)
+            log_info "Executing command: $action"
+            output=$(eval "$action" 2>&1)
+            exit_code=$?
+            ;;
+        script)
+            log_info "Executing script: $action"
+            if [[ -x "$action" ]]; then
+                output=$("$action" 2>&1)
+                exit_code=$?
+            else
+                output="Script not found or not executable: $action"
+                exit_code=1
+            fi
+            ;;
+        manual)
+            log_warning "Manual action required - cannot execute automatically"
+            update_approval_status "$approval_id" "completed" "" "Manual action - requires human intervention"
+            return 0
+            ;;
+        *)
+            log_error "Unknown action type: $action_type"
+            update_approval_status "$approval_id" "failed" "" "" "Unknown action type"
+            return 1
+            ;;
+    esac
+
+    # Update status based on execution result
+    if [[ $exit_code -eq 0 ]]; then
+        log_info "Action completed successfully"
+        update_approval_status "$approval_id" "completed" "" "$output"
+
+        # Clear related alert if present
+        local related_alert=$(echo "$action_details" | python3 -c "import sys, json; print(json.load(sys.stdin).get('related_alert_id', ''))")
+        if [[ -n "$related_alert" && "$related_alert" != "None" ]]; then
+            clear_alert "$related_alert"
+        fi
+
+        return 0
+    else
+        log_error "Action failed with exit code: $exit_code"
+        update_approval_status "$approval_id" "failed" "" "" "$output"
+        return 1
+    fi
+}
