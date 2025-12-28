@@ -45,10 +45,31 @@ async function loadSystemStatus() {
         const response = await fetch('/api/status');
         const data = await response.json();
 
-        // Update metrics
+        // Update disk metrics
         document.getElementById('disk-usage').textContent = data.disk_usage || '--';
+        document.getElementById('disk-used').textContent = data.disk_used_gb ? `${data.disk_used_gb} GB` : '--';
+        document.getElementById('disk-available').textContent = data.disk_available_gb ? `${data.disk_available_gb} GB` : '--';
+        document.getElementById('disk-total').textContent = data.disk_total_gb ? `${data.disk_total_gb} GB` : '--';
+
+        // Update memory metrics
         document.getElementById('memory-usage').textContent = data.memory_usage || '--';
-        document.getElementById('load-avg').textContent = data.load_avg.toFixed(2) || '--';
+        document.getElementById('memory-used').textContent = data.memory_used_gb ? `${data.memory_used_gb} GB` : '--';
+        document.getElementById('memory-available').textContent = data.memory_available_gb ? `${data.memory_available_gb} GB` : '--';
+        document.getElementById('memory-total').textContent = data.memory_total_gb ? `${data.memory_total_gb} GB` : '--';
+
+        // Update CPU metrics
+        document.getElementById('cpu-model').textContent = data.cpu_model || 'Unknown';
+        document.getElementById('cpu-cores').textContent = data.cpu_cores || '--';
+        document.getElementById('cpu-threads').textContent = data.cpu_threads || '--';
+        document.getElementById('cpu-load').textContent = data.load_avg ? data.load_avg.toFixed(2) : '--';
+
+        // Update network metrics
+        document.getElementById('network-interface').textContent = data.network_interface || 'Unknown';
+        document.getElementById('network-rx').textContent = data.network_rx_gb ? `${data.network_rx_gb} GB` : '--';
+        document.getElementById('network-tx').textContent = data.network_tx_gb ? `${data.network_tx_gb} GB` : '--';
+        document.getElementById('network-status').textContent = data.network_status || 'unknown';
+
+        // Update uptime
         document.getElementById('uptime').textContent = data.uptime || '--';
 
         // Update card colors based on thresholds
@@ -689,26 +710,22 @@ function updateMLStatus(data) {
 // Update individual framework card
 function updateFrameworkCard(name, data) {
     const versionEl = document.getElementById(`${name}-version`);
-    const statusEl = document.getElementById(`${name}-status`);
-    const card = document.getElementById(`${name}-card`);
+    const indicatorEl = document.getElementById(`${name}-indicator`);
 
-    if (!versionEl || !statusEl || !card) {
-        console.warn(`Framework card elements not found for: ${name}`);
+    if (!versionEl || !indicatorEl) {
+        console.warn(`Framework elements not found for: ${name}`);
         return;
     }
 
-    // Reset classes
-    card.classList.remove('not-installed');
-    statusEl.className = 'framework-status';
+    // Reset indicator classes
+    indicatorEl.className = 'framework-indicator';
 
     if (data.installed) {
         versionEl.textContent = data.version || 'Unknown';
-        statusEl.textContent = data.status_message || '';
-        statusEl.classList.add(`status-${data.status || 'healthy'}`);
+        indicatorEl.classList.add('installed');
     } else {
         versionEl.textContent = 'Not Installed';
-        statusEl.textContent = '';
-        card.classList.add('not-installed');
+        indicatorEl.classList.add('not-installed');
     }
 }
 

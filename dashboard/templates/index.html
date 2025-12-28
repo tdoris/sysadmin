@@ -31,6 +31,20 @@
                     <span class="value" id="disk-usage">--</span>
                     <span class="unit">%</span>
                 </div>
+                <div class="card-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Used:</span>
+                        <span class="detail-value" id="disk-used">--</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Available:</span>
+                        <span class="detail-value" id="disk-available">--</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Total:</span>
+                        <span class="detail-value" id="disk-total">--</span>
+                    </div>
+                </div>
             </div>
             <div class="card" id="memory-card">
                 <h3>Memory Usage</h3>
@@ -38,11 +52,59 @@
                     <span class="value" id="memory-usage">--</span>
                     <span class="unit">%</span>
                 </div>
+                <div class="card-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Used:</span>
+                        <span class="detail-value" id="memory-used">--</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Available:</span>
+                        <span class="detail-value" id="memory-available">--</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Total:</span>
+                        <span class="detail-value" id="memory-total">--</span>
+                    </div>
+                </div>
             </div>
-            <div class="card" id="load-card">
-                <h3>Load Average</h3>
-                <div class="metric">
-                    <span class="value" id="load-avg">--</span>
+            <div class="card" id="cpu-card">
+                <h3>CPU</h3>
+                <div class="card-info">
+                    <div class="info-model" id="cpu-model">--</div>
+                    <div class="card-details">
+                        <div class="detail-row">
+                            <span class="detail-label">Cores:</span>
+                            <span class="detail-value" id="cpu-cores">--</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Threads:</span>
+                            <span class="detail-value" id="cpu-threads">--</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Load:</span>
+                            <span class="detail-value" id="cpu-load">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card" id="network-card">
+                <h3>Network</h3>
+                <div class="card-info">
+                    <div class="info-model" id="network-interface">--</div>
+                    <div class="card-details">
+                        <div class="detail-row">
+                            <span class="detail-label">RX:</span>
+                            <span class="detail-value" id="network-rx">--</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">TX:</span>
+                            <span class="detail-value" id="network-tx">--</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Status:</span>
+                            <span class="detail-value" id="network-status">--</span>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="card" id="uptime-card">
@@ -52,24 +114,27 @@
                 </div>
             </div>
             <div class="card gpu-card" id="gpu-card">
-                <h3>🎮 GPU</h3>
-                <div class="gpu-info">
-                    <div class="gpu-model" id="gpu-model">--</div>
-                    <div class="gpu-metrics">
-                        <div class="gpu-metric">
-                            <span class="label">Temp:</span>
-                            <span class="value" id="gpu-temp">--</span>
+                <h3>GPU</h3>
+                <div class="card-info">
+                    <div class="info-model" id="gpu-model">--</div>
+                    <div class="card-details">
+                        <div class="detail-row">
+                            <span class="detail-label">Temp:</span>
+                            <span class="detail-value" id="gpu-temp">--</span>
                         </div>
-                        <div class="gpu-metric">
-                            <span class="label">Memory:</span>
-                            <span class="value" id="gpu-memory">--</span>
+                        <div class="detail-row">
+                            <span class="detail-label">Memory:</span>
+                            <span class="detail-value" id="gpu-memory">--</span>
                         </div>
-                        <div class="gpu-metric">
-                            <span class="label">Util:</span>
-                            <span class="value" id="gpu-util">--</span>
+                        <div class="detail-row">
+                            <span class="detail-label">Util:</span>
+                            <span class="detail-value" id="gpu-util">--</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Driver:</span>
+                            <span class="detail-value" id="gpu-driver">--</span>
                         </div>
                     </div>
-                    <div class="gpu-driver" id="gpu-driver">Driver: --</div>
                 </div>
             </div>
         </section>
@@ -78,30 +143,21 @@
         <section class="ml-frameworks-section">
             <h2>Machine Learning Environment</h2>
             <p class="section-description">System-wide ML framework installations (check virtual environments for project-specific installations)</p>
-            <div class="frameworks-grid">
-                <div class="framework-card" id="cuda-card">
-                    <div class="framework-icon">⚡</div>
-                    <div class="framework-info">
-                        <h4>CUDA Toolkit</h4>
-                        <div class="framework-version" id="cuda-version">--</div>
-                        <div class="framework-status" id="cuda-status">--</div>
-                    </div>
+            <div class="frameworks-list">
+                <div class="framework-item" id="cuda-item">
+                    <div class="framework-name">CUDA Toolkit</div>
+                    <div class="framework-value" id="cuda-version">--</div>
+                    <div class="framework-indicator" id="cuda-indicator"></div>
                 </div>
-                <div class="framework-card" id="pytorch-card">
-                    <div class="framework-icon">🔥</div>
-                    <div class="framework-info">
-                        <h4>PyTorch</h4>
-                        <div class="framework-version" id="pytorch-version">--</div>
-                        <div class="framework-status" id="pytorch-status">--</div>
-                    </div>
+                <div class="framework-item" id="pytorch-item">
+                    <div class="framework-name">PyTorch</div>
+                    <div class="framework-value" id="pytorch-version">--</div>
+                    <div class="framework-indicator" id="pytorch-indicator"></div>
                 </div>
-                <div class="framework-card" id="tensorflow-card">
-                    <div class="framework-icon">🧠</div>
-                    <div class="framework-info">
-                        <h4>TensorFlow</h4>
-                        <div class="framework-version" id="tensorflow-version">--</div>
-                        <div class="framework-status" id="tensorflow-status">--</div>
-                    </div>
+                <div class="framework-item" id="tensorflow-item">
+                    <div class="framework-name">TensorFlow</div>
+                    <div class="framework-value" id="tensorflow-version">--</div>
+                    <div class="framework-indicator" id="tensorflow-indicator"></div>
                 </div>
             </div>
             <div class="venvs-link">

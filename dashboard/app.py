@@ -63,7 +63,16 @@ def get_system_status():
         'hostname': HOSTNAME,
         'timestamp': datetime.now().isoformat(),
         'disk_usage': 0,
+        'disk_total_gb': 0,
+        'disk_used_gb': 0,
+        'disk_available_gb': 0,
         'memory_usage': 0,
+        'memory_total_gb': 0,
+        'memory_used_gb': 0,
+        'memory_available_gb': 0,
+        'cpu_model': 'Unknown',
+        'cpu_cores': 0,
+        'cpu_threads': 0,
         'load_avg': 0.0,
         'uptime': 'unknown',
         'firewall': 'unknown',
@@ -71,21 +80,47 @@ def get_system_status():
 
     try:
         # Disk usage
-        df_output = subprocess.check_output(['df', '-h', '/'], text=True)
+        df_output = subprocess.check_output(['df', '-BG', '/'], text=True)
         for line in df_output.split('\n')[1:]:
             if line:
                 parts = line.split()
+                status['disk_total_gb'] = int(parts[1].rstrip('G'))
+                status['disk_used_gb'] = int(parts[2].rstrip('G'))
+                status['disk_available_gb'] = int(parts[3].rstrip('G'))
                 status['disk_usage'] = parts[4].rstrip('%')
                 break
 
         # Memory usage
-        free_output = subprocess.check_output(['free'], text=True)
+        free_output = subprocess.check_output(['free', '-g'], text=True)
         for line in free_output.split('\n'):
             if line.startswith('Mem:'):
                 parts = line.split()
-                total, used = int(parts[1]), int(parts[2])
-                status['memory_usage'] = int((used / total) * 100)
+                total, used, available = int(parts[1]), int(parts[2]), int(parts[6])
+                status['memory_total_gb'] = total
+                status['memory_used_gb'] = used
+                status['memory_available_gb'] = available
+                status['memory_usage'] = int((used / total) * 100) if total > 0 else 0
                 break
+
+        # CPU information
+        try:
+            cpu_info = subprocess.check_output(['lscpu'], text=True)
+            for line in cpu_info.split('\n'):
+                if line.startswith('Model name:'):
+                    status['cpu_model'] = line.split(':', 1)[1].strip()
+                elif line.startswith('Core(s) per socket:'):
+                    cores = int(line.split(':')[1].strip())
+                elif line.startswith('Socket(s):'):
+                    sockets = int(line.split(':')[1].strip())
+                elif line.startswith('Thread(s) per core:'):
+                    threads_per_core = int(line.split(':')[1].strip())
+
+            if 'cores' in locals() and 'sockets' in locals():
+                status['cpu_cores'] = cores * sockets
+                if 'threads_per_core' in locals():
+                    status['cpu_threads'] = status['cpu_cores'] * threads_per_core
+        except:
+            pass
 
         # Load average
         with open('/proc/loadavg') as f:
@@ -98,6 +133,34 @@ def get_system_status():
         # Firewall
         ufw_output = subprocess.check_output(['sudo', 'ufw', 'status'], text=True)
         status['firewall'] = 'active' if 'Status: active' in ufw_output else 'inactive'
+
+        # Network information
+        try:
+            # Get primary interface (first non-loopback interface with an IP)
+            ip_output = subprocess.check_output(['ip', '-o', '-4', 'addr', 'show'], text=True)
+            for line in ip_output.split('\n'):
+                if 'scope global' in line:
+                    parts = line.split()
+                    status['network_interface'] = parts[1]
+                    status['network_ip'] = parts[3].split('/')[0]
+                    break
+
+            # Get RX/TX stats for the interface
+            if 'network_interface' in status:
+                iface = status['network_interface']
+                with open(f'/sys/class/net/{iface}/statistics/rx_bytes') as f:
+                    rx_bytes = int(f.read().strip())
+                    status['network_rx_gb'] = round(rx_bytes / (1024**3), 2)
+                with open(f'/sys/class/net/{iface}/statistics/tx_bytes') as f:
+                    tx_bytes = int(f.read().strip())
+                    status['network_tx_gb'] = round(tx_bytes / (1024**3), 2)
+
+                # Get link status
+                with open(f'/sys/class/net/{iface}/operstate') as f:
+                    status['network_status'] = f.read().strip()
+        except:
+            status['network_interface'] = 'Unknown'
+            status['network_status'] = 'unknown'
 
     except Exception as e:
         app.logger.error(f"Error getting system status: {e}")
