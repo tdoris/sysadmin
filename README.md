@@ -193,7 +193,27 @@ Designed for **developer workstations**, not production servers.
 
 ## Interactive Use
 
-Launch Claude Code for custom tasks:
+### Quick Interactive Mode (Recommended)
+
+Launch Claude with full system context pre-loaded:
+
+```bash
+cd ~/sysadmin
+./interactive
+```
+
+This automatically loads:
+- Current system status and health metrics
+- Active alerts and issues
+- Pending approvals
+- Recent activity history
+- Latest reports and recommendations
+
+Claude will be fully aware of your system state and ready to help with any issues.
+
+### Manual Claude Launch
+
+For custom tasks without context loading:
 
 ```bash
 cd ~/sysadmin

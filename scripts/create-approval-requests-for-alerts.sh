@@ -91,6 +91,20 @@ for alert in data.get('medium', []):
             'related_alert_id': alert_id
         })
 
+    elif alert_id == 'r-system-libs-optional':
+        approval_requests.append({
+            'severity': 'medium',
+            'category': 'update',
+            'title': 'Install Optional R System Libraries',
+            'description': f"{alert['description']} - Only needed if R package compilation fails.",
+            'action_type': 'command',
+            'action': 'sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libfontconfig1-dev libharfbuzz-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev libssh2-1-dev libudunits2-dev libproj-dev',
+            'risk_level': 'low',
+            'estimated_impact': '~50MB disk space, enables R packages that need these system libraries',
+            'reversible': 'true',
+            'related_alert_id': alert_id
+        })
+
 # Process info alerts
 for alert in data.get('info', []):
     alert_id = alert.get('id')

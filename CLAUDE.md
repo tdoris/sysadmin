@@ -286,6 +286,14 @@ When the assistant encounters issues requiring immediate action:
 - **Firewall disabled**: Enable with safe defaults (allow SSH from Tailscale only)
 - **Critical updates >7 days old**: Apply security updates automatically
 
+### Network Connectivity
+- **WiFi overnight disconnections**: Disable WiFi power save to prevent authentication failures
+  - Edit `/etc/NetworkManager/conf.d/wifi-powersave.conf` and set `wifi.powersave = 1`
+  - Disable/rename conflicting config files like `default-wifi-powersave-on.conf`
+  - Restart NetworkManager: `sudo systemctl restart NetworkManager`
+  - Verify with: `iw <interface> get power_save` (should show "Power save: off")
+  - Root cause: Power save causes WiFi adapter to sleep, keyring becomes inaccessible, auto-reconnect fails with "no-secrets" error
+
 ## Production Application Patterns
 
 ### Common Deployment Methods

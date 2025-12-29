@@ -1,0 +1,3 @@
+#!/bin/bash
+# Quick launcher for interactive Claude sysadmin mode
+exec "$(dirname "$0")/claude-admin/run-interactive.sh" "$@"
