@@ -287,12 +287,21 @@ When the assistant encounters issues requiring immediate action:
 - **Critical updates >7 days old**: Apply security updates automatically
 
 ### Network Connectivity
-- **WiFi overnight disconnections**: Disable WiFi power save to prevent authentication failures
+- **WiFi disconnections/roaming issues**: Multiple potential causes and fixes
+
+  **Power save issues** (causes overnight disconnections):
   - Edit `/etc/NetworkManager/conf.d/wifi-powersave.conf` and set `wifi.powersave = 1`
   - Disable/rename conflicting config files like `default-wifi-powersave-on.conf`
   - Restart NetworkManager: `sudo systemctl restart NetworkManager`
   - Verify with: `iw <interface> get power_save` (should show "Power save: off")
   - Root cause: Power save causes WiFi adapter to sleep, keyring becomes inaccessible, auto-reconnect fails with "no-secrets" error
+
+  **Band steering/roaming issues** (causes daytime disconnections):
+  - Multiple APs with same SSID on different bands (2.4GHz/5GHz) can cause failed roaming
+  - Lock to single band: `sudo nmcli connection modify <SSID> 802-11-wireless.band bg` (for 2.4GHz)
+  - Lock to specific AP: `sudo nmcli connection modify <SSID> 802-11-wireless.bssid <BSSID>`
+  - Restart connection: `sudo nmcli connection down <SSID> && sudo nmcli connection up <SSID>`
+  - Root cause: System tries to roam between bands, fails authentication during handoff with "WRONG_KEY" error
 
 ## Production Application Patterns
 
