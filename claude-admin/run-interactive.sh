@@ -177,16 +177,23 @@ echo "==================== $(date '+%Y-%m-%d %H:%M:%S') ====================" >>
 echo "Action: Interactive Session Started" >> "$ACTIVITY_LOG"
 echo "Method: Claude Code ($CLAUDE_BIN)" >> "$ACTIVITY_LOG"
 
-# Create a context file for Claude to read
-CONTEXT_FILE=$(mktemp)
+# Create a context file that Claude can reference
+CONTEXT_FILE="$REPORTS_DIR/interactive-context.md"
 cat > "$CONTEXT_FILE" <<CONTEXT_EOF
-# Claude Sysadmin Interactive Session
+# Claude Sysadmin Interactive Session - $(date '+%Y-%m-%d %H:%M:%S')
 
-You are now in interactive sysadmin mode for hostname: $HOSTNAME
+**Hostname:** $HOSTNAME
+
+This file contains the current system context for your interactive session.
+CLAUDE.md is automatically loaded and contains your role and capabilities.
+
+---
 
 ## Current System Status
 
 $(if [[ -f "$REPORTS_DIR/latest.md" ]]; then cat "$REPORTS_DIR/latest.md"; else echo "No recent report available"; fi)
+
+---
 
 ## Active Alerts
 
@@ -197,6 +204,8 @@ with open('$REPORTS_DIR/alerts.json', 'r') as f:
     import json as j
     print(j.dumps(data, indent=2))
 "; else echo "No alerts file"; fi)
+
+---
 
 ## Pending Approvals
 
@@ -212,24 +221,23 @@ with open('$REPORTS_DIR/pending-approvals.json', 'r') as f:
         print('No pending or approved items')
 " 2>/dev/null; else echo "No approvals file"; fi)
 
-## Recent Activity (last 20 lines)
-
-$(if [[ -f "$ACTIVITY_LOG" ]]; then tail -20 "$ACTIVITY_LOG"; else echo "No activity log"; fi)
-
 ---
 
-The user can now ask you questions, request actions, or work with you interactively.
-You have full context of the system state loaded above.
+## Recent Activity
+
+$(if [[ -f "$ACTIVITY_LOG" ]]; then tail -30 "$ACTIVITY_LOG"; else echo "No activity log"; fi)
 
 CONTEXT_EOF
 
-# Launch Claude Code in interactive mode with context
-"$CLAUDE_BIN" --dangerously-skip-permissions \
-    --model sonnet \
-    --initial-message "$(cat $CONTEXT_FILE)"
+echo ""
+echo "System context saved to: reports/$HOSTNAME/interactive-context.md"
+echo ""
 
-# Cleanup
-rm -f "$CONTEXT_FILE"
+# Launch Claude Code in interactive mode
+# It will automatically read CLAUDE.md which contains the sysadmin role
+# The context file is available at reports/$HOSTNAME/interactive-context.md
+"$CLAUDE_BIN" --dangerously-skip-permissions \
+    --model sonnet
 
 # Log completion
 echo "Status: Interactive session ended" >> "$ACTIVITY_LOG"
