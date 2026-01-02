@@ -303,6 +303,28 @@ When the assistant encounters issues requiring immediate action:
   - Restart connection: `sudo nmcli connection down <SSID> && sudo nmcli connection up <SSID>`
   - Root cause: System tries to roam between bands, fails authentication during handoff with "WRONG_KEY" error
 
+  **Keyring locking issues** (MOST COMMON - causes "no-secrets" errors):
+  - Gnome-keyring locks after idle timeout, making WiFi password inaccessible
+  - WiFi disconnects → tries to auto-reconnect → can't access locked keyring → "WRONG_KEY"/"no-secrets" errors
+  - **Solution**: Store password in system config file instead of keyring:
+    ```bash
+    sudo nmcli connection modify <SSID> wifi-sec.psk-flags 0
+    sudo nmcli connection modify <SSID> connection.permissions ""
+    sudo systemctl restart NetworkManager
+    ```
+  - Verify password is in /etc/netplan/*.yaml or /etc/NetworkManager/system-connections/
+  - Root cause: NetworkManager can't access password in locked user keyring for auto-reconnect
+
+  **Realtek WiFi chipset issues** (RTL8852CE and similar):
+  - Known WPA2 authentication instability with rtw89 driver
+  - Disable PMF: `sudo nmcli connection modify <SSID> 802-11-wireless-security.pmf 1`
+  - Disable driver power save in `/etc/modprobe.d/rtw89.conf`:
+    ```
+    options rtw89_pci disable_aspm=1
+    options rtw89_core disable_ps_mode=y
+    ```
+  - Reboot after driver changes: `sudo reboot`
+
 ## Production Application Patterns
 
 ### Common Deployment Methods
