@@ -171,20 +171,26 @@ def get_system_status():
 def get_alerts():
     """Get current alerts"""
     alerts_file = REPORTS_DIR / 'alerts.json'
-    alerts = read_json(alerts_file, {
+    data = read_json(alerts_file, {'alerts': []})
+
+    # Get the full alert objects from the 'alerts' array and group by severity
+    alerts_list = data.get('alerts', [])
+
+    result = {
         'critical': [],
         'high': [],
         'medium': [],
-        'info': []
-    })
-
-    return {
-        'critical': alerts.get('critical', []),
-        'high': alerts.get('high', []),
-        'medium': alerts.get('medium', []),
-        'info': alerts.get('info', []),
-        'total': sum(len(alerts.get(k, [])) for k in ['critical', 'high', 'medium'])
+        'info': [],
+        'low': []
     }
+
+    for alert in alerts_list:
+        severity = alert.get('severity', 'info')
+        if severity in result:
+            result[severity].append(alert)
+
+    result['total'] = sum(len(result[k]) for k in ['critical', 'high', 'medium'])
+    return result
 
 
 def get_recent_activity(lines=50):
