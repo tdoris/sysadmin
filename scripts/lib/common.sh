@@ -176,10 +176,14 @@ else:
 data["generated"] = datetime.now(UTC).isoformat()
 
 # Find and update or add alert
-severity_list = data.get(severity, [])
+# Initialize alerts structure if needed
+if "alerts" not in data:
+    data["alerts"] = []
+
+# Find and update or add alert in main alerts array
 found = False
-for alert in severity_list:
-    if alert["id"] == alert_id:
+for alert in data.get("alerts", []):
+    if isinstance(alert, dict) and alert.get("id") == alert_id:
         alert["title"] = title
         alert["description"] = description
         alert["status"] = status
@@ -188,7 +192,7 @@ for alert in severity_list:
         break
 
 if not found:
-    severity_list.append({
+    data["alerts"].append({
         "id": alert_id,
         "severity": severity,
         "title": title,
@@ -196,7 +200,18 @@ if not found:
         "detected": datetime.now(UTC).strftime("%Y-%m-%d"),
         "status": status
     })
-    data[severity] = severity_list
+
+# Also update severity-specific list for backward compatibility
+severity_list = data.get(severity, [])
+# Filter out old string entries and rebuild with just titles
+if severity_list and isinstance(severity_list[0], str):
+    # Old format - clean it out
+    data[severity] = [title]
+else:
+    # Check if title already in list
+    if title not in severity_list:
+        severity_list.append(title)
+        data[severity] = severity_list
 
 # Write back
 with open(alerts_file, 'w') as f:
@@ -223,17 +238,32 @@ if os.path.exists(alerts_file):
 
     data["generated"] = datetime.now(UTC).isoformat()
 
+    # Remove from main alerts array
+    if "alerts" in data:
+        data["alerts"] = [a for a in data["alerts"] if isinstance(a, dict) and a.get("id") != alert_id]
+
+    # Remove from severity-specific lists (handle both string and dict formats)
     for severity in ["critical", "high", "medium", "info"]:
-        data[severity] = [a for a in data.get(severity, []) if a["id"] != alert_id]
+        severity_list = data.get(severity, [])
+        if severity_list:
+            # Remove if it's a dict with matching id, or skip if it's a string
+            data[severity] = [a for a in severity_list if not (isinstance(a, dict) and a.get("id") == alert_id)]
 
     with open(alerts_file, 'w') as f:
         json.dump(data, f, indent=2)
 EOF
 }
 
-# Get list of failed systemd services
+# Get list of failed systemd services (excluding disabled services)
 get_failed_services() {
-    systemctl list-units --type=service --state=failed --no-pager --no-legend | awk '{print $2}'
+    local all_failed=$(systemctl list-units --type=service --state=failed --no-pager --no-legend | awk '{print $2}')
+
+    # Filter out disabled services
+    for service in $all_failed; do
+        if systemctl is-enabled --quiet "$service" 2>/dev/null; then
+            echo "$service"
+        fi
+    done
 }
 
 # Get zombie processes
