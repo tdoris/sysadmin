@@ -289,10 +289,13 @@ When the assistant encounters issues requiring immediate action:
 ### Network Connectivity
 - **WiFi disconnections/roaming issues**: Multiple potential causes and fixes
 
-  **Power save issues** (causes overnight disconnections):
-  - Edit `/etc/NetworkManager/conf.d/wifi-powersave.conf` and set `wifi.powersave = 1`
+  **Power save issues** (causes overnight disconnections / missed beacon warnings):
+  - Edit `/etc/NetworkManager/conf.d/wifi-powersave.conf` and set `wifi.powersave = 2`
+    (2 = disable, 3 = enable, 1 = ignore/leave kernel default — NOT disable!)
+  - Also set per-connection: `sudo nmcli connection modify <SSID> 802-11-wireless.powersave 2`
+  - Apply immediately (no restart needed): `sudo iw <interface> set power_save off`
   - Disable/rename conflicting config files like `default-wifi-powersave-on.conf`
-  - Restart NetworkManager: `sudo systemctl restart NetworkManager`
+  - Restart NetworkManager if needed: `sudo systemctl restart NetworkManager`
   - Verify with: `iw <interface> get power_save` (should show "Power save: off")
   - Root cause: Power save causes WiFi adapter to sleep, keyring becomes inaccessible, auto-reconnect fails with "no-secrets" error
 
