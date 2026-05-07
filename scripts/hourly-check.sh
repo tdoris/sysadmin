@@ -169,17 +169,31 @@ check_production_apps() {
 check_zombie_processes() {
     log_info "Checking for zombie processes..."
 
-    local zombies=$(get_zombie_processes)
+    local all_zombies=$(get_zombie_processes)
 
-    if [[ -n "$zombies" ]]; then
+    # Filter out known-benign zombies (Versa SASE monitor — tracked as info alert)
+    local unknown_zombies=$(echo "$all_zombies" | grep -v '^\s*$' | while read -r pid cmd; do
+        ppid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+        if [[ -n "$ppid" ]]; then
+            parent_fullcmd=$(ps -o cmd= -p "$ppid" 2>/dev/null || echo "")
+            if echo "$parent_fullcmd" | grep -qi "versa\|vsa\|monitor_vsa"; then
+                continue
+            fi
+        fi
+        echo "$pid $cmd"
+    done)
+
+    if [[ -n "$all_zombies" ]]; then
         log_warning "Zombie processes detected:"
-        echo "$zombies" | while read -r pid cmd; do
+        echo "$all_zombies" | while read -r pid cmd; do
             log_warning "  PID $pid: $cmd"
         done
+    fi
 
+    if [[ -n "$unknown_zombies" ]]; then
         update_alerts "medium" "zombie-processes" \
             "Zombie Processes" \
-            "$(echo "$zombies" | wc -l) zombie processes detected"
+            "$(echo "$unknown_zombies" | wc -l) unknown zombie processes detected"
     else
         clear_alert "zombie-processes"
     fi
