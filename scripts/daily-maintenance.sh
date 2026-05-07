@@ -116,6 +116,54 @@ cleanup_old_kernels() {
     fi
 }
 
+# Check open-webui auto-update cron health
+check_open_webui_update_cron() {
+    log_info "Checking open-webui update cron health..."
+
+    local status_file="/var/log/sysadmin/open-webui-update-status.json"
+
+    if [[ ! -f "$status_file" ]]; then
+        log_warning "open-webui update status file missing — cron has never run"
+        update_alerts "low" "open-webui-update-cron" \
+            "open-webui Update Cron Not Yet Run" \
+            "No update status file found at $status_file. Cron runs Sundays at 03:15."
+        return
+    fi
+
+    local last_run result
+    last_run=$(python3 -c "import json; d=json.load(open('$status_file')); print(d.get('last_run','unknown'))" 2>/dev/null || echo "unknown")
+    result=$(python3 -c "import json; d=json.load(open('$status_file')); print(d.get('result','unknown'))" 2>/dev/null || echo "unknown")
+
+    # Weekly schedule — flag if not run within 8 days
+    local age_days
+    age_days=$(python3 -c "
+from datetime import datetime, timezone
+import json
+d = json.load(open('$status_file'))
+lr = d.get('last_run', '')
+if not lr:
+    print(999)
+else:
+    dt = datetime.fromisoformat(lr.replace('Z', '+00:00'))
+    print((datetime.now(timezone.utc) - dt).days)
+" 2>/dev/null || echo "999")
+
+    if [[ "$result" == "failed" ]]; then
+        log_warning "open-webui update cron last run FAILED (last_run: $last_run)"
+        update_alerts "medium" "open-webui-update-cron" \
+            "open-webui Update Failed" \
+            "Last update attempt failed at $last_run. Check /var/log/sysadmin/open-webui-update.log"
+    elif [[ "$age_days" -gt 8 ]]; then
+        log_warning "open-webui update cron stale — last run $age_days days ago ($last_run)"
+        update_alerts "low" "open-webui-update-cron" \
+            "open-webui Update Cron Overdue" \
+            "Last run was $age_days days ago ($last_run). Expected weekly on Sundays at 03:15."
+    else
+        log_info "✓ open-webui update cron OK — last run: $last_run result: $result"
+        clear_alert "open-webui-update-cron"
+    fi
+}
+
 # Check and clean Docker
 check_docker_cleanup() {
     log_info "Checking Docker cleanup..."
@@ -534,6 +582,7 @@ main() {
     check_reboot_required
     cleanup_old_kernels
     check_orphaned_packages
+    check_open_webui_update_cron
     check_docker_cleanup
     check_log_rotation
     check_hardware_health
